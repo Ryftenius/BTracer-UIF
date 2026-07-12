@@ -1,6 +1,8 @@
 param(
     [ValidateSet("Debug", "Release", "ReleaseStaged")]
     [string]$Configuration = "Debug",
+    [ValidateSet("x64", "Win32")]
+    [string]$Platform = "x64",
     [int]$TimeoutSeconds = 25,
     [switch]$Build,
     [switch]$ProbeTarget
@@ -9,7 +11,6 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$Platform = "x64"
 $Bin = Join-Path $Root "bin\$Configuration\$Platform"
 $BuildConfiguration = if ($Configuration -eq "ReleaseStaged") { "Release" } else { $Configuration }
 $Runner = Join-Path $Bin "BlindRunner.exe"
@@ -211,7 +212,8 @@ if ($Build) {
         "VCXProj\BlindRunner.vcxproj",
         "VCXProj\BlindTestTarget.vcxproj",
         "VCXProj\BlindLaunchGateTarget.vcxproj",
-        "VCXProj\BlindSdkHost.vcxproj"
+        "VCXProj\BlindSdkHost.vcxproj",
+        "VCXProj\BlindMapperFailureDll.vcxproj"
     )
     foreach ($project in $projects) {
         $projectPath = Join-Path $Root $project
@@ -268,6 +270,8 @@ Run-Test "CLI help" {
     Assert-Contains $r "--color" "help did not document console coloring"
     Assert-Contains $r "--disable-lg" "help did not document disabling the default launch gate"
     Assert-Contains $r "--mm" "help did not document manual-map injection"
+    Assert-Contains $r "x86 and x64 targets are detected" "help did not document automatic architecture dispatch"
+    Assert-Contains $r "not intercepted as a debugger breakpoint" "help did not explain the safe --int3 backend"
     Assert-Contains $r "role-tagged" "help did not document stack frame role tags"
     Assert-Contains $r "new console" "help did not mention target console separation"
 }
@@ -281,15 +285,20 @@ Run-Test "help aliases" {
     }
 }
 
-Run-Test "blind.cmd help works" {
-    $env:BLIND_CONFIG = $Configuration
-    try {
-        $r = Invoke-CheckedProcess -Name "blind.cmd help" -File $BlindCmd -RawArgumentLine "help"
+if (Test-Path $BlindCmd) {
+    Run-Test "blind.cmd help works" {
+        $env:BLIND_CONFIG = $Configuration
+        try {
+            $r = Invoke-CheckedProcess -Name "blind.cmd help" -File $BlindCmd -RawArgumentLine "help"
+        }
+        finally {
+            Remove-Item Env:\BLIND_CONFIG -ErrorAction SilentlyContinue
+        }
+        Assert-Contains $r "BLIND - owned-process" "blind.cmd help did not print detailed help"
     }
-    finally {
-        Remove-Item Env:\BLIND_CONFIG -ErrorAction SilentlyContinue
-    }
-    Assert-Contains $r "BLIND - owned-process" "blind.cmd help did not print detailed help"
+}
+else {
+    Run-Skip "blind.cmd help works" "blind.cmd is not part of this standalone checkout"
 }
 
 Run-Test "command-focused help works" {
@@ -319,6 +328,128 @@ Run-Test "parser rejects registers before hook" {
 Run-Test "parser rejects hook type before hook" {
     $r = Run-Runner "hook type before hook" "--cli $(Quote-CmdArg $Target) --cli-probe-direct --int3 --hook NtQueryInformationProcess" @(2)
     Assert-Contains $r "must follow --hook or --lhook" "hook type before hook was not rejected"
+}
+
+if ($Platform -eq "Win32") {
+    Run-Test "Win32 LoadLibrary module instrumentation" {
+        $r = Run-Runner "Win32 LoadLibrary" "--cli --disable-lg $(Quote-CmdArg $Target) --cli-probe-lazy-amsi --lhook amsi" @(0) 45
+        Assert-Contains $r "ready wait=0" "Win32 LoadLibrary path did not reach module readiness"
+        Assert-Contains $r "AmsiScanBuffer hit" "Win32 LoadLibrary path did not publish module-hook telemetry"
+        Assert-Contains $r "child exit=0x00000000" "Win32 LoadLibrary target did not exit cleanly"
+    }
+
+    Run-Test "Win32 manual map module instrumentation" {
+        $r = Run-Runner "Win32 manual map" "--cli --mm --disable-lg $(Quote-CmdArg $Target) --cli-probe-lazy-amsi --lhook amsi" @(0) 45
+        Assert-Contains $r "manual-map visible=0" "Win32 manual map appeared in the loader module list"
+        Assert-Contains $r "ready wait=0" "Win32 manual-map path did not reach module readiness"
+        Assert-Contains $r "AmsiScanBuffer hit" "Win32 manual-map path did not publish module-hook telemetry"
+    }
+
+    Run-Test "Win32 pre-entry manual map" {
+        $r = Run-Runner "Win32 pre-entry manual map" "--cli --mm $(Quote-CmdArg $Target) --cli-probe-lazy-amsi --lhook amsi" @(0) 45
+        Assert-Contains $r "launch_gate=1" "Win32 default pre-entry path was not selected"
+        Assert-Contains $r "manual-map visible=0" "Win32 pre-entry manual map failed"
+        Assert-Contains $r "child exit=0x00000000" "Win32 pre-entry target did not exit cleanly"
+    }
+
+    Run-Test "Win32 manual-map DllMain failure error" {
+        $failureDll = Join-Path $Bin "BlindMapperFailureDll.dll"
+        if (-not (Test-Path $failureDll)) { throw "Missing failure fixture: $failureDll" }
+        $fixture = Join-Path ([IO.Path]::GetTempPath()) ("blind-mm-failure-" + [Guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        try {
+            Copy-Item $Runner (Join-Path $fixture "BlindRunner.exe")
+            Copy-Item $Target (Join-Path $fixture "BlindTestTarget.exe")
+            Copy-Item $failureDll (Join-Path $fixture "BLIND.dll")
+            $fixtureRunner = Join-Path $fixture "BlindRunner.exe"
+            $fixtureTarget = Join-Path $fixture "BlindTestTarget.exe"
+            $r = Invoke-CheckedProcess -Name "Win32 DllMain failure" -File $fixtureRunner `
+                -RawArgumentLine "--cli --mm --disable-lg --color=never --timeout 5s $(Quote-CmdArg $fixtureTarget) --lhook amsi" `
+                -ExpectedExitCodes @(4) -Timeout 20
+            Assert-Contains $r "DLL entrypoint returned FALSE" "manual mapper did not identify DllMain failure"
+            Assert-Contains $r "injection failed error=1114" "manual mapper did not propagate ERROR_DLL_INIT_FAILED"
+        }
+        finally {
+            Remove-Item $fixture -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Run-Test "Win32 NT inline instrumentation" {
+        $r = Run-Runner "Win32 NT inline" "--cli --disable-lg $(Quote-CmdArg $Target) --cli-probe-direct --lhook NtQueryInformationProcess" @(0) 45
+        Assert-Contains $r "ready pid=.*mask=0x0000000D" "Win32 NT controller did not reach readiness"
+        Assert-Contains $r "NtQueryInformationProcess hit" "Win32 inline NT hook did not publish telemetry"
+        Assert-Contains $r "child exit=0x00000000" "Win32 inline NT target did not exit cleanly"
+    }
+
+    Run-Test "Win32 NT exception instrumentation" {
+        $r = Run-Runner "Win32 NT exception" "--cli --disable-lg $(Quote-CmdArg $Target) --cli-probe-direct --lhook NtQueryInformationProcess --int3" @(0) 45
+        Assert-Contains $r "ready pid=.*mask=0x0000000D" "Win32 exception NT controller did not reach readiness"
+        Assert-Contains $r "NtQueryInformationProcess hit" "Win32 exception NT hook did not publish telemetry"
+        Assert-Contains $r "child exit=0x00000000" "Win32 exception NT target did not exit cleanly"
+    }
+
+    Run-Test "Win32 manual-map NT instrumentation" {
+        $r = Run-Runner "Win32 manual-map NT" "--cli --mm --disable-lg $(Quote-CmdArg $Target) --cli-probe-direct --lhook NtQueryInformationProcess" @(0) 45
+        Assert-Contains $r "manual-map visible=0" "Win32 NT manual map appeared in the loader module list"
+        Assert-Contains $r "ready pid=.*mask=0x0000000D" "Win32 manual-mapped NT controller did not reach readiness"
+        Assert-Contains $r "NtQueryInformationProcess hit" "Win32 manual-mapped NT hook did not publish telemetry"
+    }
+
+    Write-Host ""
+    Write-Host "Win32 summary: passed=$Script:Passed failed=$Script:Failed skipped=$Script:Skipped"
+    if ($Script:Failed -ne 0) { exit 1 }
+    exit 0
+}
+
+$Win32Bin = Join-Path $Root "bin\$Configuration\Win32"
+$Win32Runner = Join-Path $Win32Bin "BlindRunner.exe"
+$Win32Target = Join-Path $Win32Bin "BlindTestTarget.exe"
+$Win32Blind = Join-Path $Win32Bin "BLIND.dll"
+$Win32FailureDll = Join-Path $Win32Bin "BlindMapperFailureDll.dll"
+if ((Test-Path $Win32Runner) -and (Test-Path $Win32Target) -and (Test-Path $Win32Blind)) {
+    Run-Test "x64 runner dispatches x86 NT instrumentation" {
+        $r = Run-Runner "x64 to x86 NT" "--cli --disable-lg $(Quote-CmdArg $Win32Target) --cli-probe-direct --lhook NtQueryInformationProcess" @(0) 45
+        Assert-Contains $r "target machine=x86 dispatch=" "x64 runner did not dispatch the x86 target"
+        Assert-Contains $r "ready pid=.*mask=0x0000000D" "dispatched Win32 NT controller did not reach readiness"
+        Assert-Contains $r "NtQueryInformationProcess hit" "dispatched Win32 NT hook did not publish telemetry"
+    }
+
+    Run-Test "x64 runner dispatches x86 manual-map NT instrumentation" {
+        $r = Run-Runner "x64 to x86 manual-map NT" "--cli --mm --disable-lg $(Quote-CmdArg $Win32Target) --cli-probe-direct --lhook NtQueryInformationProcess" @(0) 45
+        Assert-Contains $r "target machine=x86 dispatch=" "x64 runner did not dispatch the x86 manual-map target"
+        Assert-Contains $r "manual-map visible=0" "dispatched Win32 manual map appeared in the loader module list"
+        Assert-Contains $r "NtQueryInformationProcess hit" "dispatched manual-mapped Win32 NT hook did not publish telemetry"
+    }
+
+    if (Test-Path $Win32FailureDll) {
+        Run-Test "x64 to x86 mapper preserves ERROR_DLL_INIT_FAILED" {
+            $fixture = Join-Path ([IO.Path]::GetTempPath()) ("blind-cross-mm-failure-" + [Guid]::NewGuid().ToString("N"))
+            $x64Fixture = Join-Path $fixture "x64"
+            $x86Fixture = Join-Path $fixture "Win32"
+            New-Item -ItemType Directory -Path $x64Fixture,$x86Fixture | Out-Null
+            try {
+                Copy-Item $Runner (Join-Path $x64Fixture "BlindRunner.exe")
+                Copy-Item $Win32Runner (Join-Path $x86Fixture "BlindRunner.exe")
+                Copy-Item $Win32Target (Join-Path $x86Fixture "BlindTestTarget.exe")
+                Copy-Item $Win32FailureDll (Join-Path $x86Fixture "BLIND.dll")
+                $r = Invoke-CheckedProcess -Name "x64 to x86 DllMain failure" -File (Join-Path $x64Fixture "BlindRunner.exe") `
+                    -RawArgumentLine "--cli --mm --disable-lg --color=never --timeout 5s $(Quote-CmdArg (Join-Path $x86Fixture 'BlindTestTarget.exe')) --lhook amsi" `
+                    -ExpectedExitCodes @(4) -Timeout 20
+                Assert-Contains $r "target machine=x86 dispatch=" "mapper failure did not traverse x86 dispatch"
+                Assert-Contains $r "DLL entrypoint returned FALSE" "dispatched mapper did not identify DllMain failure"
+                Assert-Contains $r "injection failed error=1114" "dispatched mapper did not preserve ERROR_DLL_INIT_FAILED"
+            }
+            finally {
+                Remove-Item $fixture -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    else {
+        Run-Skip "x64 to x86 mapper preserves ERROR_DLL_INIT_FAILED" "Win32 failure fixture is not built"
+    }
+}
+else {
+    Run-Skip "x64 runner dispatches x86 instrumentation" "paired Win32 artifacts are not built"
 }
 
 Run-Test "explicit hook does not print by default" {
@@ -558,16 +689,43 @@ Run-Test "manual map keeps module out of loader list" {
     Assert-Contains $r "child exit=0x00000000" "--mm target did not exit cleanly"
 }
 
-Run-Test "blind.cmd wrapper works" {
-    $env:BLIND_CONFIG = $Configuration
+Run-Test "manual-map DllMain failure returns ERROR_DLL_INIT_FAILED" {
+    $failureDll = Join-Path $Bin "BlindMapperFailureDll.dll"
+    if (-not (Test-Path $failureDll)) { throw "Missing failure fixture: $failureDll" }
+    $fixture = Join-Path ([IO.Path]::GetTempPath()) ("blind-mm-failure-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $fixture | Out-Null
     try {
-        $r = Invoke-CheckedProcess -Name "blind.cmd" -File $BlindCmd -ProcessArgs @() -RawArgumentLine "$(Quote-CmdArg $Target) --lhook NtQueryInformationProcess"
+        Copy-Item $Runner (Join-Path $fixture "BlindRunner.exe")
+        Copy-Item $Target (Join-Path $fixture "BlindTestTarget.exe")
+        Copy-Item $failureDll (Join-Path $fixture "BLIND.dll")
+        $fixtureRunner = Join-Path $fixture "BlindRunner.exe"
+        $fixtureTarget = Join-Path $fixture "BlindTestTarget.exe"
+        $r = Invoke-CheckedProcess -Name "DllMain failure" -File $fixtureRunner `
+            -RawArgumentLine "--cli --mm --disable-lg --color=never --timeout 5s $(Quote-CmdArg $fixtureTarget) --lhook amsi" `
+            -ExpectedExitCodes @(4) -Timeout 20
+        Assert-Contains $r "DLL entrypoint returned FALSE" "manual mapper did not identify DllMain failure"
+        Assert-Contains $r "injection failed error=1114" "manual mapper did not propagate ERROR_DLL_INIT_FAILED"
     }
     finally {
-        Remove-Item Env:\BLIND_CONFIG -ErrorAction SilentlyContinue
+        Remove-Item $fixture -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Assert-Contains $r "NtQueryInformationProcess hit" "blind.cmd wrapper did not reach CLI mode"
-    Assert-NotContains $r "\[target\]" "target output leaked into blind.cmd output"
+}
+
+if (Test-Path $BlindCmd) {
+    Run-Test "blind.cmd wrapper works" {
+        $env:BLIND_CONFIG = $Configuration
+        try {
+            $r = Invoke-CheckedProcess -Name "blind.cmd" -File $BlindCmd -ProcessArgs @() -RawArgumentLine "$(Quote-CmdArg $Target) --lhook NtQueryInformationProcess"
+        }
+        finally {
+            Remove-Item Env:\BLIND_CONFIG -ErrorAction SilentlyContinue
+        }
+        Assert-Contains $r "NtQueryInformationProcess hit" "blind.cmd wrapper did not reach CLI mode"
+        Assert-NotContains $r "\[target\]" "target output leaked into blind.cmd output"
+    }
+}
+else {
+    Run-Skip "blind.cmd wrapper works" "blind.cmd is not part of this standalone checkout"
 }
 
 Run-Test "CLI no-debug does not create diagnostics bundle" {

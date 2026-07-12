@@ -29,7 +29,7 @@ namespace blind::mapper
 
     bool ProtectMappedImage(ServerContext &ctx, HANDLE process, UINT64 remoteBase, MappedImage &mapped)
     {
-        auto *nt = ImageNtHeaders64(mapped.Image);
+        auto *nt = ImageNtHeaders(mapped.Image);
         if (nt == nullptr)
         {
             return Fail(ctx, "cannot protect invalid image");
@@ -83,19 +83,19 @@ namespace blind::mapper
 
     UINT64 GetTlsCallbacks(MappedImage &mapped)
     {
-        auto *nt = ImageNtHeaders64(mapped.Image);
+        auto *nt = ImageNtHeaders(mapped.Image);
         if (nt == nullptr)
         {
             return 0;
         }
 
         const IMAGE_DATA_DIRECTORY &dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS];
-        if (dir.VirtualAddress == 0 || dir.Size < sizeof(IMAGE_TLS_DIRECTORY64))
+        if (dir.VirtualAddress == 0 || dir.Size < sizeof(NativeImageTlsDirectory))
         {
             return 0;
         }
 
-        auto *tls = ImageRvaPtr<IMAGE_TLS_DIRECTORY64>(mapped.Image, dir.VirtualAddress);
+        auto *tls = ImageRvaPtr<NativeImageTlsDirectory>(mapped.Image, dir.VirtualAddress);
         return tls != nullptr ? tls->AddressOfCallBacks : 0;
     }
 } // namespace blind::mapper

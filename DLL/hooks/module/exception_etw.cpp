@@ -2,7 +2,9 @@
 
 namespace IX_MODULE_INTERNAL
 {
-    BOOLEAN WINAPI RtlAddFunctionTableHook(PRUNTIME_FUNCTION functionTable, DWORD entryCount, DWORD64 baseAddress)
+    BOOLEAN WINAPI RtlAddFunctionTableHook(RuntimeFunctionTablePointer functionTable,
+                                           DWORD entryCount,
+                                           DWORD64 baseAddress)
     {
         if (g_OriginalRtlAddFunctionTable == nullptr)
         {
@@ -33,7 +35,7 @@ namespace IX_MODULE_INTERNAL
     BOOLEAN WINAPI RtlInstallFunctionTableCallbackHook(DWORD64 tableIdentifier,
                                                        DWORD64 baseAddress,
                                                        DWORD length,
-                                                       PGET_RUNTIME_FUNCTION_CALLBACK callback,
+                                                       RuntimeFunctionTableCallback callback,
                                                        PVOID context,
                                                        PCWSTR outOfProcessCallbackDll)
     {
@@ -67,7 +69,7 @@ namespace IX_MODULE_INTERNAL
         return ok;
     }
 
-    BOOLEAN WINAPI RtlDeleteFunctionTableHook(PRUNTIME_FUNCTION functionTable)
+    BOOLEAN WINAPI RtlDeleteFunctionTableHook(RuntimeFunctionTablePointer functionTable)
     {
         if (g_OriginalRtlDeleteFunctionTable == nullptr)
         {

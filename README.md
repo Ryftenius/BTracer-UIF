@@ -228,6 +228,9 @@ msbuild .\VCXProj\BlindTestTarget.vcxproj /p:Configuration=Release /p:Platform=x
 msbuild .\VCXProj\BlindLaunchGateTarget.vcxproj /p:Configuration=Release /p:Platform=x64
 msbuild .\VCXProj\BlindRunner.vcxproj /p:Configuration=Release /p:Platform=x64
 msbuild .\VCXProj\BlindSdkHost.vcxproj /p:Configuration=Release /p:Platform=x64
+
+# Build the same five projects with /p:Platform=Win32 for 32-bit targets.
+# Runner, BLIND.dll, and target must have matching bitness.
 ```
 
 Products:
@@ -240,6 +243,27 @@ Products:
 .\bin\Release\x64\BlindTestTarget.exe
 .\bin\Release\x64\BlindLaunchGateTarget.exe
 ```
+
+The equivalent 32-bit artifacts are emitted under `bin\Release\Win32`. Run
+the architecture-specific verifier with `-Platform Win32` or `-Platform x64`:
+
+```powershell
+.\Scripts\verify_blind_cli.ps1 -Build -Configuration Release -Platform Win32 -ProbeTarget
+```
+
+Win32 builds support the LoadLibrary and manual-map entry paths, pre-entry
+launch gating, NT/module/Winsock/VEH instrumentation, and exact mapper error
+reporting. Keep the matching `x64` and `Win32` output directories together: a
+runner automatically detects a target PE's machine type and hands it to the
+matching sibling runner before injection. This lets the normal x64 BLIND entry
+point instrument x86 targets without requiring a separate user workflow. x64
+unwind-table registration remains specific to x64 images; Win32 uses its native
+exception/unwind behavior.
+
+The `--int3` spelling remains available for policy and command-line
+compatibility. Its NT exception-hook backend uses a user-mode illegal-instruction
+trap rather than a debugger-visible breakpoint, avoiding kernel-debugger or VM
+monitor interception while retaining vectored-exception dispatch.
 
 Release preflight:
 

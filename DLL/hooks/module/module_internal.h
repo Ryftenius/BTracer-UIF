@@ -29,6 +29,16 @@
 
 namespace IX_MODULE_INTERNAL
 {
+#if defined(_WIN64)
+    using RuntimeFunctionTablePointer = PRUNTIME_FUNCTION;
+    using RuntimeFunctionTableCallback = PGET_RUNTIME_FUNCTION_CALLBACK;
+#else
+    // The x64 unwind-table APIs are not declared by the Windows headers for
+    // Win32. Keep their dynamically resolved hook signatures representable;
+    // they remain inactive when the exports are absent.
+    using RuntimeFunctionTablePointer = PVOID;
+    using RuntimeFunctionTableCallback = PVOID;
+#endif
     using LSA_HANDLE = HANDLE;
     using PLSA_HANDLE = HANDLE *;
     using LSA_STRING = STRING;
@@ -60,10 +70,10 @@ namespace IX_MODULE_INTERNAL
     using LoadLibraryExAFn = HMODULE(WINAPI *)(LPCSTR, HANDLE, DWORD);
     using LoadLibraryExWFn = HMODULE(WINAPI *)(LPCWSTR, HANDLE, DWORD);
     using LdrLoadDllFn = NTSTATUS(NTAPI *)(PWSTR, PULONG, PUNICODE_STRING, PHANDLE);
-    using RtlAddFunctionTableFn = BOOLEAN(WINAPI *)(PRUNTIME_FUNCTION, DWORD, DWORD64);
+    using RtlAddFunctionTableFn = BOOLEAN(WINAPI *)(RuntimeFunctionTablePointer, DWORD, DWORD64);
     using RtlInstallFunctionTableCallbackFn =
-        BOOLEAN(WINAPI *)(DWORD64, DWORD64, DWORD, PGET_RUNTIME_FUNCTION_CALLBACK, PVOID, PCWSTR);
-    using RtlDeleteFunctionTableFn = BOOLEAN(WINAPI *)(PRUNTIME_FUNCTION);
+        BOOLEAN(WINAPI *)(DWORD64, DWORD64, DWORD, RuntimeFunctionTableCallback, PVOID, PCWSTR);
+    using RtlDeleteFunctionTableFn = BOOLEAN(WINAPI *)(RuntimeFunctionTablePointer);
     using RtlAddVectoredExceptionHandlerFn = PVOID(NTAPI *)(ULONG, PVECTORED_EXCEPTION_HANDLER);
     using RtlRemoveVectoredExceptionHandlerFn = ULONG(NTAPI *)(PVOID);
     using SetUnhandledExceptionFilterFn = LPTOP_LEVEL_EXCEPTION_FILTER(WINAPI *)(LPTOP_LEVEL_EXCEPTION_FILTER);
@@ -311,14 +321,16 @@ namespace IX_MODULE_INTERNAL
                                   PULONG loadFlags,
                                   PUNICODE_STRING moduleFileName,
                                   PHANDLE moduleHandle);
-    BOOLEAN WINAPI RtlAddFunctionTableHook(PRUNTIME_FUNCTION functionTable, DWORD entryCount, DWORD64 baseAddress);
+    BOOLEAN WINAPI RtlAddFunctionTableHook(RuntimeFunctionTablePointer functionTable,
+                                           DWORD entryCount,
+                                           DWORD64 baseAddress);
     BOOLEAN WINAPI RtlInstallFunctionTableCallbackHook(DWORD64 tableIdentifier,
                                                        DWORD64 baseAddress,
                                                        DWORD length,
-                                                       PGET_RUNTIME_FUNCTION_CALLBACK callback,
+                                                       RuntimeFunctionTableCallback callback,
                                                        PVOID context,
                                                        PCWSTR outOfProcessCallbackDll);
-    BOOLEAN WINAPI RtlDeleteFunctionTableHook(PRUNTIME_FUNCTION functionTable);
+    BOOLEAN WINAPI RtlDeleteFunctionTableHook(RuntimeFunctionTablePointer functionTable);
     PVOID NTAPI RtlAddVectoredExceptionHandlerHook(ULONG first, PVECTORED_EXCEPTION_HANDLER handler);
     ULONG NTAPI RtlRemoveVectoredExceptionHandlerHook(PVOID handle);
     LPTOP_LEVEL_EXCEPTION_FILTER WINAPI SetUnhandledExceptionFilterHook(LPTOP_LEVEL_EXCEPTION_FILTER filter);

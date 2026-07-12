@@ -8,45 +8,51 @@ namespace IX_NT_METHODS
     static bool InstallInlinePatch(void *target, void *hook, std::uint8_t original[16]) noexcept
     {
         auto *dst = static_cast<std::uint8_t *>(target);
+        const std::size_t patchSize = NtHookPatchSize(IXIPC_HOOK_METHOD_INLINE);
 
         DWORD oldProtect = 0;
-        if (!VirtualProtect(dst, 16, PAGE_EXECUTE_READWRITE, &oldProtect))
+        if (!VirtualProtect(dst, patchSize, PAGE_EXECUTE_READWRITE, &oldProtect))
         {
             return false;
         }
 
-        std::memcpy(original, dst, 16);
+        std::memcpy(original, dst, patchSize);
+#if defined(_WIN64)
         dst[0] = 0x48;
         dst[1] = 0xB8;
         *reinterpret_cast<void **>(&dst[2]) = hook;
         dst[10] = 0xFF;
         dst[11] = 0xE0;
-        dst[12] = 0xCC;
-        dst[13] = 0xCC;
-        dst[14] = 0xCC;
-        dst[15] = 0xCC;
+        std::memset(dst + 12, 0xCC, 4);
+#else
+        dst[0] = 0xB8;
+        *reinterpret_cast<void **>(&dst[1]) = hook;
+        dst[5] = 0xFF;
+        dst[6] = 0xE0;
+#endif
 
         DWORD temp = 0;
-        (void)VirtualProtect(dst, 16, oldProtect, &temp);
-        FlushInstructionCache(GetCurrentProcess(), dst, 16);
+        (void)VirtualProtect(dst, patchSize, oldProtect, &temp);
+        FlushInstructionCache(GetCurrentProcess(), dst, patchSize);
         return true;
     }
 
     static void RemoveInlinePatch(void *target, const std::uint8_t original[16]) noexcept
     {
         auto *dst = static_cast<std::uint8_t *>(target);
+        const std::size_t patchSize = NtHookPatchSize(IXIPC_HOOK_METHOD_INLINE);
 
         DWORD oldProtect = 0;
-        if (!VirtualProtect(dst, 16, PAGE_EXECUTE_READWRITE, &oldProtect))
+        if (!VirtualProtect(dst, patchSize, PAGE_EXECUTE_READWRITE, &oldProtect))
         {
             return;
         }
 
-        std::memcpy(dst, original, 16);
+        std::memcpy(dst, original, patchSize);
 
         DWORD temp = 0;
-        (void)VirtualProtect(dst, 16, oldProtect, &temp);
-        FlushInstructionCache(GetCurrentProcess(), dst, 16);
+        (void)VirtualProtect(dst, patchSize, oldProtect, &temp);
+        FlushInstructionCache(GetCurrentProcess(), dst, patchSize);
     }
 
     static bool CheckInlinePatch(void *target, void *hook) noexcept
@@ -60,9 +66,14 @@ namespace IX_NT_METHODS
         void *patchedTarget = nullptr;
         __try
         {
+#if defined(_WIN64)
             std::memcpy(&patchedTarget, &bytes[2], sizeof(patchedTarget));
             return bytes[0] == 0x48 && bytes[1] == 0xB8 && patchedTarget == hook && bytes[10] == 0xFF &&
                    bytes[11] == 0xE0;
+#else
+            std::memcpy(&patchedTarget, &bytes[1], sizeof(patchedTarget));
+            return bytes[0] == 0xB8 && patchedTarget == hook && bytes[5] == 0xFF && bytes[6] == 0xE0;
+#endif
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {

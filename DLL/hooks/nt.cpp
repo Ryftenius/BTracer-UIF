@@ -33,8 +33,6 @@
 #define PAGE_TARGETS_NO_UPDATE 0x40000000u
 #endif
 
-#ifdef _WIN64
-
 namespace IX_NT
 {
     static NtHookInitFault g_LastNtHookInitFault{};
@@ -367,7 +365,9 @@ namespace IX_NT
         LARGE_INTEGER UserTime;
         LARGE_INTEGER CreateTime;
         ULONG WaitTime;
+#if defined(_WIN64)
         ULONG Pad0;
+#endif
         PVOID StartAddress;
         HANDLE UniqueProcess;
         HANDLE UniqueThread;
@@ -376,9 +376,15 @@ namespace IX_NT
         ULONG ContextSwitches;
         ULONG ThreadState;
         ULONG WaitReason;
+#if defined(_WIN64)
         ULONG Pad1;
+#endif
     };
+#if defined(_WIN64)
     static_assert(sizeof(IxSystemThreadInformation) == 80, "IxSystemThreadInformation size mismatch");
+#else
+    static_assert(sizeof(IxSystemThreadInformation) == 64, "IxSystemThreadInformation size mismatch");
+#endif
 
     inline constexpr ULONG kSystemProcessInformation = 5u;
     inline constexpr ULONG kSystemHandleInformation = 16u;
@@ -648,8 +654,12 @@ namespace IX_NT
 
             if (bytes[0] == 0xFF && bytes[1] == 0x25)
             {
+#if defined(_WIN64)
                 std::int32_t disp = *reinterpret_cast<std::int32_t *>(&bytes[2]);
                 auto **slot = reinterpret_cast<void **>(bytes + 6 + disp);
+#else
+                auto **slot = *reinterpret_cast<void ***>(&bytes[2]);
+#endif
                 target = *slot;
                 return true;
             }
@@ -754,19 +764,26 @@ namespace IX_NT
     {
         auto *bytes = static_cast<std::uint8_t *>(targetAddress);
 
-        if (bytes[0] != 0x4C || bytes[1] != 0x8B || bytes[2] != 0xD1)
+#if defined(_WIN64)
+        if (bytes[0] != 0x4C || bytes[1] != 0x8B || bytes[2] != 0xD1 || bytes[3] != 0xB8)
             return false;
-
-        if (bytes[3] != 0xB8)
-            return false;
-
         outIndex = *reinterpret_cast<std::uint32_t *>(&bytes[4]);
+#else
+        if (bytes[0] != 0xB8)
+            return false;
+        outIndex = *reinterpret_cast<std::uint32_t *>(&bytes[1]);
+#endif
         return true;
     }
 
-    static void *BuildSyscallStub(std::uint32_t syscallIndex) noexcept
+    static void *BuildSyscallStub(void *targetAddress, std::uint32_t syscallIndex) noexcept
     {
+#if defined(_WIN64)
+        UNREFERENCED_PARAMETER(targetAddress);
         constexpr std::size_t StubSize = 16;
+#else
+        constexpr std::size_t StubSize = 32;
+#endif
 #if defined(_CONTROL_FLOW_GUARD) && (_CONTROL_FLOW_GUARD == 1)
         constexpr bool kNtStubCallerUsesCfg = true;
 #else
@@ -793,6 +810,7 @@ namespace IX_NT
                  cfgRegistrationRequired ? 1u : 0u);
 
         auto *code = static_cast<std::uint8_t *>(memory);
+#if defined(_WIN64)
         code[0] = 0x4C;
         code[1] = 0x8B;
         code[2] = 0xD1;
@@ -803,6 +821,52 @@ namespace IX_NT
         code[10] = 0xC3;
         for (std::size_t i = 11; i < StubSize; ++i)
             code[i] = 0xCC;
+#else
+        auto *source = static_cast<const std::uint8_t *>(targetAddress);
+        std::size_t sourceBytes = 0;
+        __try
+        {
+            // WoW64 stubs start with MOV EAX, service-id and terminate with
+            // RET/RET imm16. Preserve the actual transition sequence so this
+            // remains compatible with the Windows build in the child.
+            for (std::size_t i = 5; i < StubSize; ++i)
+            {
+                if (source[i] == 0xC3)
+                {
+                    sourceBytes = i + 1;
+                    break;
+                }
+                if (source[i] == 0xC2 && i + 2 < StubSize)
+                {
+                    sourceBytes = i + 3;
+                    break;
+                }
+            }
+            if (sourceBytes == 0)
+            {
+                VirtualFree(memory, 0, MEM_RELEASE);
+                return nullptr;
+            }
+            std::memcpy(code, source, sourceBytes);
+
+            // Some WoW64 builds use a relative call immediately after the
+            // service id. Relocate that one PC-relative operand.
+            if (sourceBytes >= 10 && code[5] == 0xE8)
+            {
+                const std::int32_t oldDisplacement = *reinterpret_cast<const std::int32_t *>(&source[6]);
+                const std::uintptr_t callTarget = reinterpret_cast<std::uintptr_t>(source + 10) + oldDisplacement;
+                const std::intptr_t newDisplacement =
+                    static_cast<std::intptr_t>(callTarget) - reinterpret_cast<std::intptr_t>(code + 10);
+                *reinterpret_cast<std::int32_t *>(&code[6]) = static_cast<std::int32_t>(newDisplacement);
+            }
+            std::memset(code + sourceBytes, 0xCC, StubSize - sourceBytes);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            VirtualFree(memory, 0, MEM_RELEASE);
+            return nullptr;
+        }
+#endif
 
         DWORD oldProtect = 0;
         const DWORD finalProtect =
@@ -1127,6 +1191,7 @@ namespace IX_NT
 
         snapshot.Valid = 1;
         snapshot.Rip = reinterpret_cast<std::uint64_t>(caller);
+#if defined(_WIN64)
         snapshot.Rsp = context.Rsp;
         snapshot.Rbp = context.Rbp;
         snapshot.Rax = static_cast<std::uint64_t>(static_cast<std::uint32_t>(status));
@@ -1143,6 +1208,24 @@ namespace IX_NT
         snapshot.R13 = context.R13;
         snapshot.R14 = context.R14;
         snapshot.R15 = context.R15;
+#else
+        snapshot.Rsp = context.Esp;
+        snapshot.Rbp = context.Ebp;
+        snapshot.Rax = static_cast<std::uint64_t>(static_cast<std::uint32_t>(status));
+        snapshot.Rbx = context.Ebx;
+        snapshot.Rcx = args != nullptr ? args[0] : context.Ecx;
+        snapshot.Rdx = args != nullptr ? args[1] : context.Edx;
+        snapshot.Rsi = context.Esi;
+        snapshot.Rdi = context.Edi;
+        snapshot.R8 = args != nullptr ? args[2] : 0;
+        snapshot.R9 = args != nullptr ? args[3] : 0;
+        snapshot.R10 = 0;
+        snapshot.R11 = 0;
+        snapshot.R12 = 0;
+        snapshot.R13 = 0;
+        snapshot.R14 = 0;
+        snapshot.R15 = 0;
+#endif
         snapshot.EFlags = context.EFlags;
     }
 
@@ -1327,8 +1410,13 @@ namespace IX_NT
         __try
         {
             contextFlags = static_cast<std::uint64_t>(value->ContextFlags);
+#if defined(_WIN64)
             instructionPointer = static_cast<std::uint64_t>(value->Rip);
             stackPointer = static_cast<std::uint64_t>(value->Rsp);
+#else
+            instructionPointer = static_cast<std::uint64_t>(value->Eip);
+            stackPointer = static_cast<std::uint64_t>(value->Esp);
+#endif
             return true;
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
@@ -2828,14 +2916,9 @@ namespace IX_NT
         return nullptr;
     }
 } // namespace IX_NT
-#endif
 
 bool IxSetNtHook(NtHookCallback callback) noexcept
 {
-#ifndef _WIN64
-    (void)callback;
-    return false;
-#else
     using namespace IX_NT;
 
     if (!callback)
@@ -2963,7 +3046,7 @@ bool IxSetNtHook(NtHookCallback callback) noexcept
             continue;
         }
 
-        void *stubCode = BuildSyscallStub(sysIndex);
+        void *stubCode = BuildSyscallStub(targetAddress, sysIndex);
         if (!stubCode)
         {
             SetNtHookInitFault(
@@ -3089,12 +3172,10 @@ bool IxSetNtHook(NtHookCallback callback) noexcept
 
     IxDbgLog("IxSetNtHook: end anyInstalled=%u", anyInstalled ? 1u : 0u);
     return anyInstalled;
-#endif
 }
 
 void IxRemoveNtHook() noexcept
 {
-#ifdef _WIN64
     using namespace IX_NT;
 
     for (auto &hook : g_NtHooks)
@@ -3114,20 +3195,10 @@ void IxRemoveNtHook() noexcept
     }
 
     g_ActiveNtCallback = nullptr;
-#else
-    (void)0;
-#endif
 }
 
 bool IxCheckNtHookIntegrity(std::uint32_t *mismatchCount) noexcept
 {
-#ifndef _WIN64
-    if (mismatchCount != nullptr)
-    {
-        *mismatchCount = 0;
-    }
-    return true;
-#else
     using namespace IX_NT;
 
     std::uint32_t mismatches = 0;
@@ -3161,19 +3232,10 @@ bool IxCheckNtHookIntegrity(std::uint32_t *mismatchCount) noexcept
     }
 
     return mismatches == 0;
-#endif
 }
 
 bool IxGetLastNtHookInitFault(NtHookInitFault *faultOut) noexcept
 {
-#ifndef _WIN64
-    if (faultOut != nullptr)
-    {
-        std::memset(faultOut, 0, sizeof(*faultOut));
-        faultOut->Code = NtHookInitFaultCode::None;
-    }
-    return false;
-#else
     if (faultOut == nullptr)
     {
         return false;
@@ -3181,16 +3243,10 @@ bool IxGetLastNtHookInitFault(NtHookInitFault *faultOut) noexcept
 
     *faultOut = IX_NT::g_LastNtHookInitFault;
     return faultOut->Code != NtHookInitFaultCode::None;
-#endif
 }
 
 std::size_t IxCollectNtHookStubInfos(NtHookStubInfo *out, std::size_t capacity) noexcept
 {
-#ifndef _WIN64
-    (void)out;
-    (void)capacity;
-    return 0;
-#else
     if (out == nullptr || capacity == 0)
         return 0;
 
@@ -3208,16 +3264,10 @@ std::size_t IxCollectNtHookStubInfos(NtHookStubInfo *out, std::size_t capacity) 
         ++count;
     }
     return count;
-#endif
 }
 
 std::size_t IxCollectNtHookPatchInfos(NtHookPatchInfo *out, std::size_t capacity) noexcept
 {
-#ifndef _WIN64
-    (void)out;
-    (void)capacity;
-    return 0;
-#else
     if (out == nullptr || capacity == 0)
         return 0;
 
@@ -3237,5 +3287,4 @@ std::size_t IxCollectNtHookPatchInfos(NtHookPatchInfo *out, std::size_t capacity
         ++count;
     }
     return count;
-#endif
 }

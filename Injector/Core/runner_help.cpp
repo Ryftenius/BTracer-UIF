@@ -72,6 +72,8 @@ void PrintUsage() {
       L"  --disable-lg           Disable the default pre-entry launch gate.\n");
   std::wprintf(L"  --mm                   Manually map BLIND.dll without "
                L"LoadLibrary and verify loader-list absence.\n");
+  std::wprintf(L"                         x86 and x64 targets are detected "
+               L"automatically and use the matching sibling runner.\n");
   std::wprintf(L"  --sym, --syms          Try DbgHelp symbol names for "
                L"--stack-trace frames.\n");
   std::wprintf(
@@ -135,6 +137,8 @@ void PrintUsage() {
       L"int3, iat, shadow-iat.\n");
   std::wprintf(L"                         Aliases: --inline, --int3, --iat, "
                L"--shadow-iat.\n");
+  std::wprintf(L"                         --int3 uses a user-mode exception "
+               L"trap that is not intercepted as a debugger breakpoint.\n");
   std::wprintf(L"  --sf                  Sanitize BLIND-owned frames from "
                L"published stack traces.\n");
   std::wprintf(L"  --r, --regs            Include a hook-time register "
@@ -173,6 +177,8 @@ void PrintUsage() {
 
   std::wprintf(L"Notes:\n");
   std::wprintf(L"  BLIND only instruments processes spawned by this runner.\n");
+  std::wprintf(L"  Keep sibling x64 and Win32 output directories together so "
+               L"cross-architecture targets can dispatch transparently.\n");
   std::wprintf(L"  Extra module hooks are lazy: BLIND watches loader APIs and "
                L"does not LoadLibrary optional DLLs.\n");
   std::wprintf(L"  Targets are started in a new console so target "
@@ -207,6 +213,8 @@ void PrintHelpTopic(const wchar_t *topic) {
         L"  --disable-lg           Disable the default launch gate.\n");
     std::wprintf(L"  --mm                   Manually map BLIND.dll and verify "
                  L"it is absent from loader lists.\n");
+    std::wprintf(L"  architecture           x86/x64 targets automatically use "
+                 L"the matching sibling runner.\n");
     std::wprintf(L"  --timeout <duration>   Stop long-lived targets after "
                  L"15000, 30s, 2m, or 0/none.\n");
     std::wprintf(

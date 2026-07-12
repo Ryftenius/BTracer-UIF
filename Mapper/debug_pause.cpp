@@ -32,11 +32,11 @@ namespace blind::mapper
             return false;
         }
 
-        IMAGE_NT_HEADERS64 nt{};
+        NativeImageNtHeaders nt{};
         BYTE *ntAddress = reinterpret_cast<BYTE *>(imageBase) + dos.e_lfanew;
         if (!ReadProcessMemory(process, ntAddress, &nt, sizeof(nt), &read) || read != sizeof(nt) ||
-            nt.Signature != IMAGE_NT_SIGNATURE || nt.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC ||
-            nt.OptionalHeader.AddressOfEntryPoint == 0)
+            nt.Signature != IMAGE_NT_SIGNATURE || nt.OptionalHeader.Magic != kNativeOptionalHeaderMagic ||
+            nt.FileHeader.Machine != kNativeMachine || nt.OptionalHeader.AddressOfEntryPoint == 0)
         {
             return false;
         }

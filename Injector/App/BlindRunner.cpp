@@ -109,22 +109,29 @@ int wmain(int argc, wchar_t **argv) {
     }
   }
 
+  const std::wstring &targetPath = options.TargetPath;
+
+  if (!FileExists(targetPath)) {
+    std::wprintf(L"[blind] missing target: %ls\n", targetPath.c_str());
+    return 2;
+  }
+
+  int architectureExitCode = 0;
+  if (RelaunchForTargetArchitecture(argc, argv, targetPath,
+                                    architectureExitCode)) {
+    return architectureExitCode;
+  }
+  if (!FileExists(dllPath)) {
+    std::wprintf(L"[blind] missing DLL: %ls\n", dllPath.c_str());
+    return 2;
+  }
+
   wchar_t existingPipeName[2]{};
   if (options.CliMode &&
       GetEnvironmentVariableW(IXIPC_PIPE_NAME_ENV, existingPipeName,
                               RTL_NUMBER_OF(existingPipeName)) == 0) {
     std::wstring cliPipe = BuildUniqueCliPipeName();
     (void)SetEnvironmentVariableW(IXIPC_PIPE_NAME_ENV, cliPipe.c_str());
-  }
-  const std::wstring &targetPath = options.TargetPath;
-
-  if (!FileExists(dllPath)) {
-    std::wprintf(L"[blind] missing DLL: %ls\n", dllPath.c_str());
-    return 2;
-  }
-  if (!FileExists(targetPath)) {
-    std::wprintf(L"[blind] missing target: %ls\n", targetPath.c_str());
-    return 2;
   }
 
   ServerContext ctx{};
@@ -263,7 +270,14 @@ int wmain(int argc, wchar_t **argv) {
           ? blind::mapper::MapDllIntoChild(ctx, pi.hProcess, dllPath)
           : InjectDllIntoChild(ctx, pi.hProcess, dllPath);
   if (!injected) {
-    TerminateProcess(pi.hProcess, ERROR_DLL_INIT_FAILED);
+    DWORD injectionError = GetLastError();
+    if (injectionError == ERROR_SUCCESS) {
+      injectionError = ERROR_DLL_INIT_FAILED;
+    }
+    ColorPrintf(LogColor::Error,
+                "[blind] injection failed error=%lu (0x%08lX)\n",
+                injectionError, injectionError);
+    TerminateProcess(pi.hProcess, injectionError);
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
     ctx.Stop.store(true, std::memory_order_release);

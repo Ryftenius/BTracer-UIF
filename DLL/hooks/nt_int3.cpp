@@ -24,7 +24,7 @@ namespace IX_NT_METHODS
         {
             if (exceptionPointers == nullptr || exceptionPointers->ExceptionRecord == nullptr ||
                 exceptionPointers->ContextRecord == nullptr ||
-                exceptionPointers->ExceptionRecord->ExceptionCode != EXCEPTION_BREAKPOINT)
+                exceptionPointers->ExceptionRecord->ExceptionCode != EXCEPTION_ILLEGAL_INSTRUCTION)
             {
                 return EXCEPTION_CONTINUE_SEARCH;
             }
@@ -134,17 +134,22 @@ namespace IX_NT_METHODS
         }
 
         DWORD oldProtect = 0;
-        if (!VirtualProtect(dst, 1, PAGE_EXECUTE_READWRITE, &oldProtect))
+        if (!VirtualProtect(dst, 2, PAGE_EXECUTE_READWRITE, &oldProtect))
         {
             RemoveInt3Slot(patch.Target);
             return false;
         }
 
-        dst[0] = 0xCC;
+        // Use a two-byte UD2 trap rather than INT3. Hardened analysis VMs and
+        // attached kernel debuggers may intercept #BP before user VEH delivery,
+        // which can stall the entire guest. UD2 preserves exception-directed
+        // dispatch while remaining exclusively a user-mode fault here.
+        dst[0] = 0x0F;
+        dst[1] = 0x0B;
 
         DWORD temp = 0;
-        (void)VirtualProtect(dst, 1, oldProtect, &temp);
-        FlushInstructionCache(GetCurrentProcess(), dst, 1);
+        (void)VirtualProtect(dst, 2, oldProtect, &temp);
+        FlushInstructionCache(GetCurrentProcess(), dst, 2);
         return true;
     }
 
@@ -157,12 +162,13 @@ namespace IX_NT_METHODS
 
         auto *dst = static_cast<std::uint8_t *>(patch.Target);
         DWORD oldProtect = 0;
-        if (VirtualProtect(dst, 1, PAGE_EXECUTE_READWRITE, &oldProtect))
+        if (VirtualProtect(dst, 2, PAGE_EXECUTE_READWRITE, &oldProtect))
         {
             dst[0] = patch.OriginalBytes[0];
+            dst[1] = patch.OriginalBytes[1];
             DWORD temp = 0;
-            (void)VirtualProtect(dst, 1, oldProtect, &temp);
-            FlushInstructionCache(GetCurrentProcess(), dst, 1);
+            (void)VirtualProtect(dst, 2, oldProtect, &temp);
+            FlushInstructionCache(GetCurrentProcess(), dst, 2);
         }
 
         RemoveInt3Slot(patch.Target);
@@ -177,7 +183,8 @@ namespace IX_NT_METHODS
 
         __try
         {
-            return *static_cast<const std::uint8_t *>(patch.Target) == 0xCC;
+            const auto *bytes = static_cast<const std::uint8_t *>(patch.Target);
+            return bytes[0] == 0x0F && bytes[1] == 0x0B;
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
         {

@@ -304,6 +304,9 @@ namespace IX_RUNTIME_INTERNAL
     {
 #if defined(_M_X64)
         context.ContextFlags = CONTEXT_AMD64 | CONTEXT_CONTROL | CONTEXT_INTEGER;
+#else
+        context.ContextFlags = CONTEXT_i386 | CONTEXT_CONTROL | CONTEXT_INTEGER;
+#endif
         context.Dr0 = 0;
         context.Dr1 = 0;
         context.Dr2 = 0;
@@ -311,6 +314,23 @@ namespace IX_RUNTIME_INTERNAL
         context.Dr6 = 0;
         context.Dr7 = 0;
         context.EFlags &= ~0x100u;
+    }
+
+    ULONG_PTR LaunchGateInstructionPointer(const CONTEXT &context) noexcept
+    {
+#if defined(_M_X64)
+        return static_cast<ULONG_PTR>(context.Rip);
+#else
+        return static_cast<ULONG_PTR>(context.Eip);
+#endif
+    }
+
+    ULONG_PTR LaunchGateStackPointer(const CONTEXT &context) noexcept
+    {
+#if defined(_M_X64)
+        return static_cast<ULONG_PTR>(context.Rsp);
+#else
+        return static_cast<ULONG_PTR>(context.Esp);
 #endif
     }
 
@@ -332,8 +352,8 @@ namespace IX_RUNTIME_INTERNAL
         IxDbgLog("%s: resuming original thread tid=%lu rip=%p rsp=%p",
                  source != nullptr ? source : "LaunchGate",
                  static_cast<unsigned long>(park->ThreadId),
-                 reinterpret_cast<void *>(context.Rip),
-                 reinterpret_cast<void *>(context.Rsp));
+                 reinterpret_cast<void *>(LaunchGateInstructionPointer(context)),
+                 reinterpret_cast<void *>(LaunchGateStackPointer(context)));
 
         if (restore != nullptr)
         {
@@ -347,7 +367,9 @@ namespace IX_RUNTIME_INTERNAL
                 IxRuntimeFaultCode::LaunchGateResumeRejected, static_cast<std::uint32_t>(status), context.ContextFlags);
         }
 
-        IxRuntimeReportFault(IxRuntimeFaultCode::LaunchGateResumeRejected, context.Rip, context.Rsp);
+        IxRuntimeReportFault(IxRuntimeFaultCode::LaunchGateResumeRejected,
+                             LaunchGateInstructionPointer(context),
+                             LaunchGateStackPointer(context));
         IxRuntimeFailClosed(ERROR_INVALID_STATE);
     }
 

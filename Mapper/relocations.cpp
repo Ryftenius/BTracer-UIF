@@ -4,7 +4,7 @@ namespace blind::mapper
 {
     bool ApplyRelocations(ServerContext &ctx, MappedImage &mapped, UINT64 remoteBase)
     {
-        auto *nt = ImageNtHeaders64(mapped.Image);
+        auto *nt = ImageNtHeaders(mapped.Image);
         if (nt == nullptr)
         {
             return Fail(ctx, "cannot relocate invalid image headers");
@@ -52,6 +52,7 @@ namespace blind::mapper
                 {
                     continue;
                 }
+#if defined(_WIN64)
                 if (type == IMAGE_REL_BASED_DIR64)
                 {
                     auto *patch = ImageRvaPtr<UINT64>(mapped.Image, patchRva);
@@ -62,6 +63,7 @@ namespace blind::mapper
                     *patch = static_cast<UINT64>(static_cast<INT64>(*patch) + delta);
                     continue;
                 }
+#else
                 if (type == IMAGE_REL_BASED_HIGHLOW)
                 {
                     auto *patch = ImageRvaPtr<UINT32>(mapped.Image, patchRva);
@@ -72,6 +74,7 @@ namespace blind::mapper
                     *patch = static_cast<UINT32>(*patch + static_cast<INT32>(delta));
                     continue;
                 }
+#endif
 
                 return Fail(ctx, "unsupported relocation type");
             }

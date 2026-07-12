@@ -49,7 +49,9 @@ namespace blind::mapper
 
         if (!ok)
         {
+            DWORD mapError = GetLastError();
             VirtualFreeEx(process, remoteImage, 0, MEM_RELEASE);
+            SetLastError(mapError != ERROR_SUCCESS ? mapError : ERROR_DLL_INIT_FAILED);
             return false;
         }
 

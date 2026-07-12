@@ -56,15 +56,20 @@ namespace IX_MODULE_INTERNAL
             return false;
         }
 
+#if defined(_WIN64)
         dst[0] = 0x48;
         dst[1] = 0xB8;
         *reinterpret_cast<void **>(&dst[2]) = hook.HookEntry;
         dst[10] = 0xFF;
         dst[11] = 0xE0;
-        dst[12] = 0xCC;
-        dst[13] = 0xCC;
-        dst[14] = 0xCC;
-        dst[15] = 0xCC;
+        std::memset(dst + 12, 0xCC, 4);
+#else
+        dst[0] = 0xB8;
+        *reinterpret_cast<void **>(&dst[1]) = hook.HookEntry;
+        dst[5] = 0xFF;
+        dst[6] = 0xE0;
+        std::memset(dst + 7, 0xCC, 9);
+#endif
 
         DWORD temp = 0;
         (void)VirtualProtect(dst, 16, oldProtect, &temp);
@@ -106,12 +111,21 @@ namespace IX_MODULE_INTERNAL
 
         std::memcpy(original, dst, kPatchSize);
         std::memcpy(gate, dst, kPatchSize);
+#if defined(_WIN64)
         gate[16] = 0x48;
         gate[17] = 0xB8;
         *reinterpret_cast<void **>(&gate[18]) = dst + kPatchSize;
         gate[26] = 0xFF;
         gate[27] = 0xE0;
-        for (std::size_t i = 28; i < kTrampolineSize; ++i)
+        constexpr std::size_t kTrampolineCodeEnd = 28;
+#else
+        gate[16] = 0xB8;
+        *reinterpret_cast<void **>(&gate[17]) = dst + kPatchSize;
+        gate[21] = 0xFF;
+        gate[22] = 0xE0;
+        constexpr std::size_t kTrampolineCodeEnd = 23;
+#endif
+        for (std::size_t i = kTrampolineCodeEnd; i < kTrampolineSize; ++i)
         {
             gate[i] = 0xCC;
         }
@@ -132,15 +146,20 @@ namespace IX_MODULE_INTERNAL
             return false;
         }
 
+#if defined(_WIN64)
         dst[0] = 0x48;
         dst[1] = 0xB8;
         *reinterpret_cast<void **>(&dst[2]) = hook;
         dst[10] = 0xFF;
         dst[11] = 0xE0;
-        dst[12] = 0xCC;
-        dst[13] = 0xCC;
-        dst[14] = 0xCC;
-        dst[15] = 0xCC;
+        std::memset(dst + 12, 0xCC, 4);
+#else
+        dst[0] = 0xB8;
+        *reinterpret_cast<void **>(&dst[1]) = hook;
+        dst[5] = 0xFF;
+        dst[6] = 0xE0;
+        std::memset(dst + 7, 0xCC, 9);
+#endif
 
         DWORD temp = 0;
         (void)VirtualProtect(dst, kPatchSize, oldProtect, &temp);

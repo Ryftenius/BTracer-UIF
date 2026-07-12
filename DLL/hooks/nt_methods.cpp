@@ -41,7 +41,15 @@ namespace IX_NT_METHODS
 
     std::size_t NtHookPatchSize(std::uint32_t method) noexcept
     {
-        return method == IXIPC_HOOK_METHOD_INT3 ? 1u : 16u;
+        if (method == IXIPC_HOOK_METHOD_INT3)
+        {
+            return 2u;
+        }
+#if defined(_WIN64)
+        return 16u;
+#else
+        return 7u;
+#endif
     }
 
     std::uint32_t NtHookPatchFlag(std::uint32_t method) noexcept

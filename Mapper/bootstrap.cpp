@@ -26,30 +26,37 @@ namespace blind::mapper
 
     bool RunBootstrap(ServerContext &ctx, HANDLE process, UINT64 remoteBase, MappedImage &mapped)
     {
-        auto *nt = ImageNtHeaders64(mapped.Image);
+        auto *nt = ImageNtHeaders(mapped.Image);
         if (nt == nullptr)
         {
             return Fail(ctx, "cannot bootstrap invalid image");
         }
 
+#if defined(_WIN64)
         UINT64 remoteRtlAddFunctionTable = 0;
         if (!ResolveRemoteRtlAddFunctionTable(ctx, process, remoteRtlAddFunctionTable))
         {
             return false;
         }
+#endif
 
         const IMAGE_DATA_DIRECTORY &exceptionDir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION];
         BootstrapData data{};
-        data.ImageBase = remoteBase;
-        data.EntryPoint = mapped.EntryPointRva != 0 ? remoteBase + mapped.EntryPointRva : 0;
-        data.TlsCallbacks = GetTlsCallbacks(mapped);
+        data.ImageBase = static_cast<ULONG_PTR>(remoteBase);
+        data.EntryPoint = mapped.EntryPointRva != 0 ? static_cast<ULONG_PTR>(remoteBase + mapped.EntryPointRva) : 0;
+        data.TlsCallbacks = static_cast<ULONG_PTR>(GetTlsCallbacks(mapped));
+#if defined(_WIN64)
         data.RtlAddFunctionTable = remoteRtlAddFunctionTable;
         if (exceptionDir.VirtualAddress != 0 && exceptionDir.Size >= sizeof(IMAGE_RUNTIME_FUNCTION_ENTRY))
         {
             data.ExceptionTable = remoteBase + exceptionDir.VirtualAddress;
             data.ExceptionCount = exceptionDir.Size / sizeof(IMAGE_RUNTIME_FUNCTION_ENTRY);
         }
+#else
+        (void)exceptionDir;
+#endif
 
+#if defined(_WIN64)
         static const BYTE kBootstrapCode[] = {
             0x53, 0x56, 0x48, 0x83, 0xEC, 0x28, 0x48, 0x8B, 0xD9, 0xC7, 0x43, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x48,
             0x8B, 0x43, 0x18, 0x48, 0x85, 0xC0, 0x74, 0x1F, 0x8B, 0x53, 0x28, 0x85, 0xD2, 0x74, 0x18, 0x48, 0x8B,
@@ -60,6 +67,17 @@ namespace blind::mapper
             0x8B, 0x0B, 0xBA, 0x01, 0x00, 0x00, 0x00, 0x45, 0x33, 0xC0, 0xFF, 0xD0, 0x48, 0x89, 0x43, 0x30, 0x85,
             0xC0, 0x75, 0x0B, 0xC7, 0x43, 0x2C, 0x02, 0x00, 0x00, 0x80, 0x33, 0xC0, 0xEB, 0x0C, 0xC7, 0x43, 0x2C,
             0x02, 0x00, 0x00, 0x00, 0xB8, 0x01, 0x00, 0x00, 0x00, 0x48, 0x83, 0xC4, 0x28, 0x5E, 0x5B, 0xC3};
+#else
+        // DWORD WINAPI Bootstrap(BootstrapData *data). The position-independent
+        // x86 stub runs TLS callbacks, then DllMain(DLL_PROCESS_ATTACH), and
+        // records both its detailed status and the entrypoint result.
+        static const BYTE kBootstrapCode[] = {
+            0x53, 0x56, 0x8B, 0x5C, 0x24, 0x0C, 0xC7, 0x43, 0x18, 0x01, 0x00, 0x00, 0x00, 0x8B, 0x73, 0x08, 0x85, 0xF6,
+            0x74, 0x13, 0x8B, 0x06, 0x85, 0xC0, 0x74, 0x0D, 0x6A, 0x00, 0x6A, 0x01, 0xFF, 0x33, 0xFF, 0xD0, 0x83, 0xC6,
+            0x04, 0xEB, 0xED, 0x8B, 0x43, 0x04, 0x85, 0xC0, 0x74, 0x1A, 0x6A, 0x00, 0x6A, 0x01, 0xFF, 0x33, 0xFF, 0xD0,
+            0x89, 0x43, 0x1C, 0x85, 0xC0, 0x75, 0x0B, 0xC7, 0x43, 0x18, 0x02, 0x00, 0x00, 0x80, 0x33, 0xC0, 0xEB, 0x0C,
+            0xC7, 0x43, 0x18, 0x02, 0x00, 0x00, 0x00, 0xB8, 0x01, 0x00, 0x00, 0x00, 0x5E, 0x5B, 0xC2, 0x04, 0x00};
+#endif
 
         SYSTEM_INFO systemInfo{};
         GetNativeSystemInfo(&systemInfo);
@@ -109,16 +127,19 @@ namespace blind::mapper
         SIZE_T read = 0;
         bool readResult =
             ReadProcessMemory(process, remoteData, &result, sizeof(result), &read) && read == sizeof(result);
+        const DWORD resultError = readResult ? ERROR_SUCCESS : GetLastError();
         VirtualFreeEx(process, remoteBootstrap, 0, MEM_RELEASE);
 
         if (!threadOk || !readResult)
         {
+            const DWORD bootstrapError = wait == WAIT_TIMEOUT ? ERROR_TIMEOUT : resultError;
             HostDebugLog(ctx,
                          "manual-map: bootstrap wait=%lu exit=0x%08lX read=%u gle=%lu",
                          wait,
                          exitCode,
                          readResult ? 1u : 0u,
-                         GetLastError());
+                         bootstrapError);
+            SetLastError(bootstrapError != ERROR_SUCCESS ? bootstrapError : ERROR_INVALID_FUNCTION);
             return Fail(ctx, "bootstrap thread failed");
         }
         if (exitCode == 0 || result.Status != kBootstrapSucceeded)
@@ -130,12 +151,15 @@ namespace blind::mapper
                          static_cast<unsigned long long>(result.EntryResult));
             if (result.Status == kBootstrapRtlAddFunctionTableFailed)
             {
-                return Fail(ctx, "bootstrap failed to register x64 unwind metadata");
+                SetLastError(ERROR_INVALID_FUNCTION);
+                return Fail(ctx, "bootstrap failed to register unwind metadata");
             }
             if (result.Status == kBootstrapEntryPointFailed)
             {
+                SetLastError(ERROR_DLL_INIT_FAILED);
                 return Fail(ctx, "DLL entrypoint returned FALSE");
             }
+            SetLastError(exitCode == 0 ? ERROR_DLL_INIT_FAILED : ERROR_INVALID_FUNCTION);
             return Fail(ctx, "bootstrap did not complete successfully");
         }
 

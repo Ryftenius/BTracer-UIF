@@ -38,7 +38,7 @@ namespace IXIPC
         std::uint64_t StackPointer;
     };
 
-    static_assert(sizeof(wchar_t) == 2, "Windows x64 expected wchar_t == 2 bytes.");
+    static_assert(sizeof(wchar_t) == 2, "Windows expected wchar_t == 2 bytes.");
 
     bool Initialize(DWORD timeoutMs = PIPE_DEFAULT_TIMEOUT_MS);
     void Shutdown();

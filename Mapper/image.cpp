@@ -83,7 +83,7 @@ namespace blind::mapper
         return nullptr;
     }
 
-    IMAGE_NT_HEADERS64 *ImageNtHeaders64(std::vector<BYTE> &image)
+    NativeImageNtHeaders *ImageNtHeaders(std::vector<BYTE> &image)
     {
         if (image.size() < sizeof(IMAGE_DOS_HEADER))
         {
@@ -97,14 +97,14 @@ namespace blind::mapper
         }
 
         if (static_cast<std::size_t>(dos->e_lfanew) > image.size() ||
-            sizeof(IMAGE_NT_HEADERS64) > image.size() - static_cast<std::size_t>(dos->e_lfanew))
+            sizeof(NativeImageNtHeaders) > image.size() - static_cast<std::size_t>(dos->e_lfanew))
         {
             return nullptr;
         }
 
-        auto *nt = reinterpret_cast<IMAGE_NT_HEADERS64 *>(image.data() + dos->e_lfanew);
-        if (nt->Signature != IMAGE_NT_SIGNATURE || nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC ||
-            nt->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64)
+        auto *nt = reinterpret_cast<NativeImageNtHeaders *>(image.data() + dos->e_lfanew);
+        if (nt->Signature != IMAGE_NT_SIGNATURE || nt->OptionalHeader.Magic != kNativeOptionalHeaderMagic ||
+            nt->FileHeader.Machine != kNativeMachine)
         {
             return nullptr;
         }
@@ -127,16 +127,17 @@ namespace blind::mapper
         auto *dos = reinterpret_cast<const IMAGE_DOS_HEADER *>(raw.data());
         if (dos->e_magic != IMAGE_DOS_SIGNATURE || dos->e_lfanew <= 0 ||
             static_cast<std::size_t>(dos->e_lfanew) > raw.size() ||
-            sizeof(IMAGE_NT_HEADERS64) > raw.size() - static_cast<std::size_t>(dos->e_lfanew))
+            sizeof(NativeImageNtHeaders) > raw.size() - static_cast<std::size_t>(dos->e_lfanew))
         {
             return Fail(ctx, "DLL image has invalid DOS/NT headers");
         }
 
-        auto *nt = reinterpret_cast<const IMAGE_NT_HEADERS64 *>(raw.data() + dos->e_lfanew);
-        if (nt->Signature != IMAGE_NT_SIGNATURE || nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC ||
-            nt->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64)
+        auto *nt = reinterpret_cast<const NativeImageNtHeaders *>(raw.data() + dos->e_lfanew);
+        if (nt->Signature != IMAGE_NT_SIGNATURE || nt->OptionalHeader.Magic != kNativeOptionalHeaderMagic ||
+            nt->FileHeader.Machine != kNativeMachine)
         {
-            return Fail(ctx, "manual mapper only supports x64 PE32+ DLLs");
+            SetLastError(ERROR_EXE_MACHINE_TYPE_MISMATCH);
+            return Fail(ctx, "manual mapper DLL architecture does not match the runner");
         }
         if ((nt->FileHeader.Characteristics & IMAGE_FILE_DLL) == 0)
         {
@@ -154,7 +155,7 @@ namespace blind::mapper
         }
 
         const std::size_t sectionTableOffset = static_cast<std::size_t>(dos->e_lfanew) +
-                                               offsetof(IMAGE_NT_HEADERS64, OptionalHeader) +
+                                               offsetof(NativeImageNtHeaders, OptionalHeader) +
                                                nt->FileHeader.SizeOfOptionalHeader;
         const std::size_t sectionTableBytes =
             static_cast<std::size_t>(nt->FileHeader.NumberOfSections) * sizeof(IMAGE_SECTION_HEADER);
@@ -201,7 +202,7 @@ namespace blind::mapper
             }
         }
 
-        if (ImageNtHeaders64(mapped.Image) == nullptr)
+        if (ImageNtHeaders(mapped.Image) == nullptr)
         {
             return Fail(ctx, "mapped image headers failed validation");
         }

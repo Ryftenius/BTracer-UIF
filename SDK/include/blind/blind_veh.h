@@ -63,8 +63,8 @@ namespace ix::IX
         std::uint64_t r13{};
         std::uint64_t r14{};
         std::uint64_t r15{};
-        std::uint64_t eflags{};
 #endif
+        std::uint64_t eflags{};
 
         bool is_target_module{};
         bool is_memory_fault{};

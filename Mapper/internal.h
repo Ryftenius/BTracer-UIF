@@ -10,6 +10,22 @@
 namespace blind::mapper {
 using namespace blind::injector;
 
+#if defined(_WIN64)
+using NativeImageNtHeaders = IMAGE_NT_HEADERS64;
+using NativeImageThunkData = IMAGE_THUNK_DATA64;
+using NativeImageTlsDirectory = IMAGE_TLS_DIRECTORY64;
+inline constexpr WORD kNativeOptionalHeaderMagic =
+    IMAGE_NT_OPTIONAL_HDR64_MAGIC;
+inline constexpr WORD kNativeMachine = IMAGE_FILE_MACHINE_AMD64;
+#else
+using NativeImageNtHeaders = IMAGE_NT_HEADERS32;
+using NativeImageThunkData = IMAGE_THUNK_DATA32;
+using NativeImageTlsDirectory = IMAGE_TLS_DIRECTORY32;
+inline constexpr WORD kNativeOptionalHeaderMagic =
+    IMAGE_NT_OPTIONAL_HDR32_MAGIC;
+inline constexpr WORD kNativeMachine = IMAGE_FILE_MACHINE_I386;
+#endif
+
 struct MappedImage {
   std::vector<BYTE> Image;
   UINT64 PreferredBase = 0;
@@ -19,20 +35,27 @@ struct MappedImage {
 };
 
 struct BootstrapData {
-  UINT64 ImageBase = 0;
-  UINT64 EntryPoint = 0;
-  UINT64 TlsCallbacks = 0;
-  UINT64 RtlAddFunctionTable = 0;
-  UINT64 ExceptionTable = 0;
+  ULONG_PTR ImageBase = 0;
+  ULONG_PTR EntryPoint = 0;
+  ULONG_PTR TlsCallbacks = 0;
+  ULONG_PTR RtlAddFunctionTable = 0;
+  ULONG_PTR ExceptionTable = 0;
   UINT32 ExceptionCount = 0;
   UINT32 Status = 0;
-  UINT64 EntryResult = 0;
+  ULONG_PTR EntryResult = 0;
 };
 
+#if defined(_WIN64)
 static_assert(offsetof(BootstrapData, Status) == 0x2C,
               "manual-map bootstrap layout drifted");
 static_assert(offsetof(BootstrapData, EntryResult) == 0x30,
               "manual-map bootstrap layout drifted");
+#else
+static_assert(offsetof(BootstrapData, Status) == 0x18,
+              "manual-map bootstrap layout drifted");
+static_assert(offsetof(BootstrapData, EntryResult) == 0x1C,
+              "manual-map bootstrap layout drifted");
+#endif
 
 inline constexpr DWORD kBootstrapStarted = 1;
 inline constexpr DWORD kBootstrapSucceeded = 2;
@@ -55,7 +78,7 @@ template <typename T> T *ImageRvaPtr(std::vector<BYTE> &image, DWORD rva) {
 
 BYTE *ImageRvaBytes(std::vector<BYTE> &image, DWORD rva, std::size_t size);
 const char *ImageRvaString(std::vector<BYTE> &image, DWORD rva);
-IMAGE_NT_HEADERS64 *ImageNtHeaders64(std::vector<BYTE> &image);
+NativeImageNtHeaders *ImageNtHeaders(std::vector<BYTE> &image);
 
 bool PrepareMappedImage(ServerContext &ctx, const std::wstring &dllPath,
                         MappedImage &mapped);

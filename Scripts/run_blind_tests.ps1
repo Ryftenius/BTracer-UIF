@@ -1,6 +1,8 @@
 param(
     [ValidateSet("Debug", "Release", "ReleaseStaged")]
     [string]$Configuration = "Release",
+    [ValidateSet("x64", "Win32")]
+    [string]$Platform = "x64",
     [int]$TimeoutSeconds = 45,
     [switch]$NoBuild,
     [switch]$NoFormat,
@@ -12,7 +14,6 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$Platform = "x64"
 $Bin = Join-Path $Root "bin\$Configuration\$Platform"
 $env:BLIND_TEST_NO_NEW_CONSOLE = "1"
 $Script:Passed = 0
@@ -162,7 +163,8 @@ function Invoke-CompiledVerifier {
 
     Invoke-Step "compiled CLI verifier" {
         $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "verify_blind_cli.ps1"),
-                  "-Configuration", $Configuration, "-TimeoutSeconds", $TimeoutSeconds, "-ProbeTarget")
+                  "-Configuration", $Configuration, "-Platform", $Platform,
+                  "-TimeoutSeconds", $TimeoutSeconds, "-ProbeTarget")
         if (-not $NoBuild) {
             $args += "-Build"
         }

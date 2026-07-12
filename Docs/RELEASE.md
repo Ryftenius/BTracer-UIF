@@ -36,6 +36,8 @@ msbuild .\VCXProj\BlindTestTarget.vcxproj /p:Configuration=Release /p:Platform=x
 msbuild .\VCXProj\BlindLaunchGateTarget.vcxproj /p:Configuration=Release /p:Platform=x64
 msbuild .\VCXProj\BlindRunner.vcxproj /p:Configuration=Release /p:Platform=x64
 msbuild .\VCXProj\BlindSdkHost.vcxproj /p:Configuration=Release /p:Platform=x64
+.\Scripts\verify_blind_cli.ps1 -Build -Configuration Release -Platform x64 -ProbeTarget
+.\Scripts\verify_blind_cli.ps1 -Build -Configuration Release -Platform Win32 -ProbeTarget
 .\bin\Release\x64\BlindRunner.exe
 .\bin\Release\x64\BlindRunner.exe --launch-gate --pipe \\.\pipe\BLINDReleaseLaunchGate
 .\bin\Release\x64\BlindSdkHost.exe

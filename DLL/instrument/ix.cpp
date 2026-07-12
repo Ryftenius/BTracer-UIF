@@ -429,6 +429,12 @@ namespace
 
         return captured;
     }
+#elif defined(_M_IX86)
+    static void CaptureContextRegisters(const CONTEXT *ctx, ix::IX::Event &evt) noexcept
+    {
+        if (ctx != nullptr)
+            evt.eflags = ctx->EFlags;
+    }
 #endif
 
     static bool DefaultMemoryFaultHandling(const ix::IX::Event &evt) noexcept
@@ -512,9 +518,7 @@ namespace
         evt.pid = GetCurrentProcessId();
         evt.tid = GetCurrentThreadId();
 
-#if defined(_M_X64)
         CaptureContextRegisters(ep->ContextRecord, evt);
-#endif
 
         evt.is_noncontinuable = (evt.exception_flags & EXCEPTION_NONCONTINUABLE) != 0;
         evt.is_memory_fault = IsMemoryFault(evt.exception_code);

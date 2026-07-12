@@ -156,7 +156,7 @@ namespace blind::mapper
 
     bool ResolveImports(ServerContext &ctx, HANDLE process, MappedImage &mapped)
     {
-        auto *nt = ImageNtHeaders64(mapped.Image);
+        auto *nt = ImageNtHeaders(mapped.Image);
         if (nt == nullptr)
         {
             return Fail(ctx, "cannot resolve imports for invalid image");
@@ -215,14 +215,14 @@ namespace blind::mapper
 
             for (DWORD thunkIndex = 0; thunkIndex < 65536; ++thunkIndex)
             {
-                const DWORD lookupOffset = thunkIndex * sizeof(IMAGE_THUNK_DATA64);
+                const DWORD lookupOffset = thunkIndex * sizeof(NativeImageThunkData);
                 if (lookupOffset > MAXDWORD - lookupRva || lookupOffset > MAXDWORD - iatRva)
                 {
                     return Fail(ctx, "import thunk table offset overflowed");
                 }
 
-                auto *lookup = ImageRvaPtr<IMAGE_THUNK_DATA64>(mapped.Image, lookupRva + lookupOffset);
-                auto *iat = ImageRvaPtr<IMAGE_THUNK_DATA64>(mapped.Image, iatRva + lookupOffset);
+                auto *lookup = ImageRvaPtr<NativeImageThunkData>(mapped.Image, lookupRva + lookupOffset);
+                auto *iat = ImageRvaPtr<NativeImageThunkData>(mapped.Image, iatRva + lookupOffset);
                 if (lookup == nullptr || iat == nullptr)
                 {
                     return Fail(ctx, "import thunk is truncated");
@@ -233,9 +233,15 @@ namespace blind::mapper
                 }
 
                 FARPROC localProc = nullptr;
+#if defined(_WIN64)
                 if (IMAGE_SNAP_BY_ORDINAL64(lookup->u1.Ordinal))
                 {
                     WORD ordinal = static_cast<WORD>(IMAGE_ORDINAL64(lookup->u1.Ordinal));
+#else
+                if (IMAGE_SNAP_BY_ORDINAL32(lookup->u1.Ordinal))
+                {
+                    WORD ordinal = static_cast<WORD>(IMAGE_ORDINAL32(lookup->u1.Ordinal));
+#endif
                     localProc = GetProcAddress(localImport, MAKEINTRESOURCEA(ordinal));
                 }
                 else
@@ -279,7 +285,7 @@ namespace blind::mapper
                                  ownerText[0] != '\0' ? ownerText : "<unknown>");
                     return Fail(ctx, "an import dependency is not loaded in the child process");
                 }
-                iat->u1.Function = remoteProc;
+                iat->u1.Function = static_cast<ULONG_PTR>(remoteProc);
             }
         }
 

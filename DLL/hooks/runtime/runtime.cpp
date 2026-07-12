@@ -16,7 +16,9 @@
 #include <cwchar>
 #include <vector>
 
+#if defined(_M_X64)
 #pragma intrinsic(__readgsqword)
+#endif
 #pragma intrinsic(_ReturnAddress)
 
 using namespace IX_RUNTIME_INTERNAL;
@@ -2551,7 +2553,7 @@ namespace IX_RUNTIME_INTERNAL
         local.GuardBase = guardBase;
         local.GuardSize = pageSize;
         local.ExportBase = nullptr;
-        local.ExportSize = pageSize64;
+        local.ExportSize = pageSize;
         local.StubAddress = stubAddress;
         local.SyscallNumber = syscallNumber;
         local.CreatorCaller = caller;
@@ -3164,6 +3166,11 @@ namespace
             eventRecord.eflags = ep->ContextRecord->EFlags;
             eventRecord.stack_frame_count = CaptureGuardedVehStack(
                 ep->ContextRecord, static_cast<std::uint16_t>(ix::IX::kMaxStackFrames), eventRecord.stack);
+        }
+#elif defined(_M_IX86)
+        if (ep->ContextRecord != nullptr)
+        {
+            eventRecord.eflags = ep->ContextRecord->EFlags;
         }
 #endif
     }
