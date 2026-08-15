@@ -149,7 +149,7 @@ Decode:
 
 ## Loading The DLL
 
-The included samples use `CreateRemoteThread` with `LoadLibraryW` against a child process they created. Product integrations can replace that loader with a Titan-reviewed owned-process load path, but the same restrictions apply:
+The included samples use `CreateRemoteThread` with `LoadLibraryW` against a child process they created. Product integrations can replace that loader with a RYFTENIUS-reviewed owned-process load path, but the same restrictions apply:
 
 - no arbitrary PID attach;
 - no third-party target process;
@@ -181,4 +181,4 @@ Recommended host outcomes:
 
 ## Security And Release Controls
 
-All SDK use remains under `LICENSE.md`. Do not publish, transfer, demo, or ship source, binaries, symbols, headers, docs, or derived packages outside Titan-approved DSGL/export-control and secure-use policy.
+All SDK use remains under `LICENSE.md`. Do not publish, transfer, demo, or ship source, binaries, symbols, headers, docs, or derived packages outside RYFTENIUS-approved DSGL/export-control and secure-use policy.

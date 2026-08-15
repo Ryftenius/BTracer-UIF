@@ -296,6 +296,6 @@ Run the local test harness without spawning extra consoles:
 
 ## LICENSE
 
-Copyright (c) TITAN Softwork Solutions. All rights reserved.
+Copyright (c) RYFTENIUS. All rights reserved.
 
 BLIND is governed by `LICENSE.md`: PolyForm Noncommercial 1.0.0 with a BLIND Defensive Use Addendum and DSGL/export-control notice.

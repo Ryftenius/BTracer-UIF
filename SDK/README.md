@@ -1,6 +1,6 @@
 # BLIND SDK
 
-The BLIND SDK is the controlled integration surface for the standalone BLIND runtime. It is intended for Titan-owned hosts that load `BLIND.dll` into owned child processes and receive instrumentation events over the BLIND IPC pipe.
+The BLIND SDK is the controlled integration surface for the standalone BLIND runtime. It is intended for RYFTENIUS-owned hosts that load `BLIND.dll` into owned child processes and receive instrumentation events over the BLIND IPC pipe.
 
 Current SDK version: `0.2` (`BLIND_SDK_IPC_VERSION == IXIPC_VERSION`).
 
@@ -42,8 +42,8 @@ The SDK supports owned-process, local-machine integration only:
 - load `BLIND.dll` only into that owned process;
 - process handshake, optional CLI hook policy queries, readiness, hook events, batches, self-map records, and registration records;
 - treat `BLIND_SDK_READY_CORE_MASK` (`0x0000000D`: IPC, NT, KI) as the minimum healthy runtime mask, and `BLIND_SDK_READY_FULL_MASK` (`0x0000001F`) as all ABI-defined hook readiness flags;
-- preserve audit logs and release artifacts under the BLIND license and Titan DSGL/export-control policy.
+- preserve audit logs and release artifacts under the BLIND license and RYFTENIUS DSGL/export-control policy.
 
-Do not add arbitrary-PID attach, persistence, stealth loading, third-party monitoring, or remote deployment paths without a formal Titan security review.
+Do not add arbitrary-PID attach, persistence, stealth loading, third-party monitoring, or remote deployment paths without a formal RYFTENIUS security review.
 
 See `Docs/SDK.md` and `Docs/INTEGRATION.md` for the complete host contract.

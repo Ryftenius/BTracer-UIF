@@ -1,6 +1,6 @@
 # BLIND Controlled Release Checklist
 
-BLIND is not a public release artifact. A "release" means a Titan-controlled internal handoff under the license, DSGL/export-control review, and secure-use policy.
+BLIND is not a public release artifact. A "release" means a RYFTENIUS-controlled internal handoff under the license, DSGL/export-control review, and secure-use policy.
 
 ## Required Artifacts
 
@@ -58,7 +58,7 @@ Before handoff:
 
 - record source commit and build machine identity;
 - hash every staged binary and header;
-- sign binaries when required by Titan policy;
+- sign binaries when required by RYFTENIUS policy;
 - preserve PDBs only in approved symbol storage;
 - record the approving owner and DSGL/export-control decision.
 

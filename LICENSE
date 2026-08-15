@@ -6,7 +6,7 @@ restrictions. Do not export, re-export, transfer, publish, supply, provide
 access to, or otherwise distribute BLIND, its source code, binaries,
 documentation, build artifacts, technical data, or derived works unless you have
 confirmed that the activity is authorized under all applicable laws, licenses,
-permits, exemptions, organizational policies, and Titan approval requirements.
+permits, exemptions, organizational policies, and RYFTENIUS approval requirements.
 
 No license is granted for any use, transfer, publication, export, re-export, or
 technical assistance that requires an authorization, approval, permit,
@@ -15,7 +15,7 @@ maintaining evidence of authorization, lawful purpose, recipient eligibility,
 retention controls, and deletion requirements before using, modifying, sharing,
 or distributing this software or related technical information.
 
-© 2026 TITAN Softwork Solutions / 8damon
+© 2026 RYFTENIUS / 8damon
 
 Licensed under the PolyForm Noncommercial 1.0.0 license with the
 BLIND Defensive Use Addendum below.
@@ -25,7 +25,7 @@ authorized, defensive security purposes. Commercial use requires prior written
 permission. Any use outside the defensive scope below is not a permitted purpose
 under this license.
 
-Required Notice: © 2026 TITAN Softwork Solutions / 8damon
+Required Notice: © 2026 RYFTENIUS / 8damon
 
 # BLIND Defensive Use Addendum
 
@@ -56,7 +56,7 @@ software for any of the following purposes:
   system;
 - adding arbitrary-PID attach, persistence, stealth loading, uncontrolled remote
   deployment, hidden-thread filtering, module unlinking, or kernel-driver
-  control paths without formal Titan authorization;
+  control paths without formal RYFTENIUS authorization;
 - removing, weakening, or misrepresenting this addendum, required notices,
   safety warnings, DSGL/export-control notice, or defensive-use limitations when
   sharing the software or derivative works.
