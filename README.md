@@ -1,3 +1,5 @@
+**BTracer/BLIND is soon being merged with [RESX](https://github.com/Ryftenius/RESX) to provide one, full reverse-engineering platform. Thank you for your patience!**
+
 <h1 align="center">BLIND</h1>
 
 <p align="center"><b>Windows user-mode instrumentation that turns hooks, launch-gate injection, direct-syscall probes, and runtime self-maps into readable process behavior.</b></p>
