@@ -66,21 +66,11 @@ namespace IX_RUNTIME_INTERNAL
 
         IxDbgLog("EnsureCoreHookControllersReady: NtHook fault=%s function=%s address=%p redirect=%p syscall=%lu "
                  "sample=%02X %02X %02X %02X %02X %02X %02X %02X",
-                 DescribeNtHookInitFaultCode(fault.Code),
-                 fault.FunctionName != nullptr ? fault.FunctionName : "",
-                 fault.Address,
-                 fault.RedirectTarget,
-                 static_cast<unsigned long>(fault.SyscallIndex),
-                 fault.Sample[0],
-                 fault.Sample[1],
-                 fault.Sample[2],
-                 fault.Sample[3],
-                 fault.Sample[4],
-                 fault.Sample[5],
-                 fault.Sample[6],
+                 DescribeNtHookInitFaultCode(fault.Code), fault.FunctionName != nullptr ? fault.FunctionName : "",
+                 fault.Address, fault.RedirectTarget, static_cast<unsigned long>(fault.SyscallIndex), fault.Sample[0],
+                 fault.Sample[1], fault.Sample[2], fault.Sample[3], fault.Sample[4], fault.Sample[5], fault.Sample[6],
                  fault.Sample[7]);
-        IxRuntimeReportFault(IxRuntimeFaultCode::NtHookInitFault,
-                             reinterpret_cast<std::uint64_t>(fault.Address),
+        IxRuntimeReportFault(IxRuntimeFaultCode::NtHookInitFault, reinterpret_cast<std::uint64_t>(fault.Address),
                              static_cast<std::uint64_t>(fault.Code));
     }
 
@@ -94,21 +84,11 @@ namespace IX_RUNTIME_INTERNAL
 
         IxDbgLog("EnsureCoreHookControllersReady: ModuleHook fault=%s module=%ws export=%s address=%p redirect=%p "
                  "sample=%02X %02X %02X %02X %02X %02X %02X %02X",
-                 DescribeModuleHookInitFaultCode(fault.Code),
-                 fault.ModuleName != nullptr ? fault.ModuleName : L"",
-                 fault.ExportName != nullptr ? fault.ExportName : "",
-                 fault.Address,
-                 fault.RedirectTarget,
-                 fault.Sample[0],
-                 fault.Sample[1],
-                 fault.Sample[2],
-                 fault.Sample[3],
-                 fault.Sample[4],
-                 fault.Sample[5],
-                 fault.Sample[6],
-                 fault.Sample[7]);
-        IxRuntimeReportFault(IxRuntimeFaultCode::ModuleHookInitFault,
-                             reinterpret_cast<std::uint64_t>(fault.Address),
+                 DescribeModuleHookInitFaultCode(fault.Code), fault.ModuleName != nullptr ? fault.ModuleName : L"",
+                 fault.ExportName != nullptr ? fault.ExportName : "", fault.Address, fault.RedirectTarget,
+                 fault.Sample[0], fault.Sample[1], fault.Sample[2], fault.Sample[3], fault.Sample[4], fault.Sample[5],
+                 fault.Sample[6], fault.Sample[7]);
+        IxRuntimeReportFault(IxRuntimeFaultCode::ModuleHookInitFault, reinterpret_cast<std::uint64_t>(fault.Address),
                              static_cast<std::uint64_t>(fault.Code));
     }
 
@@ -163,7 +143,7 @@ namespace IX_RUNTIME_INTERNAL
 
     bool EnsureModuleHookControllerReady() noexcept
     {
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
         if (!ShouldEnableModuleHookControllerByPolicy())
         {
             g_ModuleInitialized = false;
@@ -325,7 +305,7 @@ namespace IX_RUNTIME_INTERNAL
             return false;
         }
 
-        constexpr std::uint32_t kTransportReadyMask = IXIPC_HOOK_READY_FLAG_IPC_CONNECTED;
+        constexpr std::uint32_t kTransportReadyMask = SKUGGA_IPC_HOOK_READY_FLAG_IPC_CONNECTED;
         if (!NotifyHookReadyWithRetry(kTransportReadyMask))
         {
             IxDbgLog("EnsureRuntimeInitializedForLaunch: initial transport notify failed");
@@ -343,10 +323,8 @@ namespace IX_RUNTIME_INTERNAL
             moduleReady = EnsureModuleHookControllerReady();
             (void)MaybeInitializeWinsockHookController();
         }
-        IxDbgLog("EnsureRuntimeInitializedForLaunch: ntReady=%u moduleReady=%u readyMask=0x%08lX",
-                 ntReady ? 1u : 0u,
-                 moduleReady ? 1u : 0u,
-                 (unsigned long)BuildHookReadyMask(true));
+        IxDbgLog("EnsureRuntimeInitializedForLaunch: ntReady=%u moduleReady=%u readyMask=0x%08lX", ntReady ? 1u : 0u,
+                 moduleReady ? 1u : 0u, (unsigned long)BuildHookReadyMask(true));
         if (!ntReady || !moduleReady)
         {
             IxRuntimeReportFault(IxRuntimeFaultCode::CoreHookInitFailed, BuildHookReadyMask(true));
@@ -408,23 +386,23 @@ namespace IX_RUNTIME_INTERNAL
         std::uint32_t mask = 0;
         if (ipcConnected)
         {
-            mask |= IXIPC_HOOK_READY_FLAG_IPC_CONNECTED;
+            mask |= SKUGGA_IPC_HOOK_READY_FLAG_IPC_CONNECTED;
         }
         if (g_WinsockInitialized)
         {
-            mask |= IXIPC_HOOK_READY_FLAG_WINSOCK;
+            mask |= SKUGGA_IPC_HOOK_READY_FLAG_WINSOCK;
         }
         if (g_NtInitialized)
         {
-            mask |= IXIPC_HOOK_READY_FLAG_NT;
+            mask |= SKUGGA_IPC_HOOK_READY_FLAG_NT;
         }
         if (g_KiInitialized)
         {
-            mask |= IXIPC_HOOK_READY_FLAG_KI;
+            mask |= SKUGGA_IPC_HOOK_READY_FLAG_KI;
         }
         if (g_ModuleInitialized)
         {
-            mask |= IXIPC_HOOK_READY_FLAG_MODULE;
+            mask |= SKUGGA_IPC_HOOK_READY_FLAG_MODULE;
         }
         return mask;
     }
@@ -437,7 +415,7 @@ namespace IX_RUNTIME_INTERNAL
 
         for (;;)
         {
-            if (IXIPC::Initialize(kIpcInitAttemptTimeoutMs))
+            if (SKUGGA_IPC::Initialize(kIpcInitAttemptTimeoutMs))
             {
                 IxDbgLog("InitializeIpcWithRetry: success elapsedMs=%llu",
                          (unsigned long long)(GetTickCount64() - startTick));
@@ -448,21 +426,19 @@ namespace IX_RUNTIME_INTERNAL
             if ((now - lastStatusTick) >= 1000ull)
             {
                 IxDbgLog("InitializeIpcWithRetry: waiting elapsedMs=%llu pipeStage=%lu pipeError=%lu",
-                         (unsigned long long)(now - startTick),
-                         (unsigned long)IXIPC::LastConnectStage(),
-                         (unsigned long)IXIPC::LastConnectError());
+                         (unsigned long long)(now - startTick), (unsigned long)SKUGGA_IPC::LastConnectStage(),
+                         (unsigned long)SKUGGA_IPC::LastConnectError());
                 lastStatusTick = now;
             }
 
             if ((now - startTick) >= kIpcInitMaxWaitMs)
             {
                 IxDbgLog("InitializeIpcWithRetry: timeout elapsedMs=%llu pipeStage=%lu pipeError=%lu",
-                         (unsigned long long)(now - startTick),
-                         (unsigned long)IXIPC::LastConnectStage(),
-                         (unsigned long)IXIPC::LastConnectError());
+                         (unsigned long long)(now - startTick), (unsigned long)SKUGGA_IPC::LastConnectStage(),
+                         (unsigned long)SKUGGA_IPC::LastConnectError());
                 IxRuntimeReportFault(IxRuntimeFaultCode::IpcInitializeTimedOut,
                                      static_cast<std::uint64_t>(now - startTick),
-                                     static_cast<std::uint64_t>(IXIPC::LastConnectError()));
+                                     static_cast<std::uint64_t>(SKUGGA_IPC::LastConnectError()));
                 return false;
             }
 
@@ -485,22 +461,19 @@ namespace IX_RUNTIME_INTERNAL
         for (;;)
         {
             std::uint32_t observedMask = 0;
-            if (IXIPC::NotifyHookReady(localMask, &observedMask))
+            if (SKUGGA_IPC::NotifyHookReady(localMask, &observedMask))
             {
                 IxDbgLog("NotifyHookReadyWithRetry: success localMask=0x%08lX observedMask=0x%08lX elapsedMs=%llu",
-                         (unsigned long)localMask,
-                         (unsigned long)observedMask,
+                         (unsigned long)localMask, (unsigned long)observedMask,
                          (unsigned long long)(GetTickCount64() - startTick));
                 return true;
             }
 
             if ((GetTickCount64() - startTick) >= kHookReadyNotifyMaxWaitMs)
             {
-                IxDbgLog("NotifyHookReadyWithRetry: timeout localMask=0x%08lX elapsedMs=%llu",
-                         (unsigned long)localMask,
+                IxDbgLog("NotifyHookReadyWithRetry: timeout localMask=0x%08lX elapsedMs=%llu", (unsigned long)localMask,
                          (unsigned long long)(GetTickCount64() - startTick));
-                IxRuntimeReportFault(IxRuntimeFaultCode::HookReadyTimedOut,
-                                     localMask,
+                IxRuntimeReportFault(IxRuntimeFaultCode::HookReadyTimedOut, localMask,
                                      static_cast<std::uint64_t>(GetTickCount64() - startTick));
                 return false;
             }
@@ -528,18 +501,16 @@ namespace IX_RUNTIME_INTERNAL
 
         std::uint32_t observedMask = 0;
         std::uint32_t pendingCmd = 0;
-        if (!IXIPC::NotifyHookReady(localMask, &observedMask, &pendingCmd))
+        if (!SKUGGA_IPC::NotifyHookReady(localMask, &observedMask, &pendingCmd))
         {
             return;
         }
 
         g_LastPublishedHookReadyMask.store(localMask, std::memory_order_release);
         IxDbgLog("PublishCurrentHookReadyMaskBestEffort: localMask=0x%08lX observedMask=0x%08lX pendingCmd=%lu",
-                 (unsigned long)localMask,
-                 (unsigned long)observedMask,
-                 (unsigned long)pendingCmd);
+                 (unsigned long)localMask, (unsigned long)observedMask, (unsigned long)pendingCmd);
 
-        if (pendingCmd == IxIpcCommandUpgradeWinsockHooks)
+        if (pendingCmd == SkuggaIpcCommandUpgradeWinsockHooks)
         {
             IxDbgLog("PublishCurrentHookReadyMaskBestEffort: controller requested inline Winsock hook upgrade");
             if (IxInstallWinsockInlineHooks())

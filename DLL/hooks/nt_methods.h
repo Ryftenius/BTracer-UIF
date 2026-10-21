@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../ABI/blind_ipc.h"
+#include "../../ABI/skugga_ipc.h"
 
 #include <cstddef>
 #include <cstdint>

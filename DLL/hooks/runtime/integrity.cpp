@@ -218,20 +218,20 @@ namespace IX_RUNTIME_INTERNAL
 
     bool SendWinsockEvent(const WinsockCapturedEvent &evt) noexcept
     {
-        using namespace IXIPC;
+        using namespace SKUGGA_IPC;
 
         auto cls = IC_STACKTRACE::ClassifyTrace(evt.Stack);
         if (cls.Flags & IC_STACKTRACE::kCallerFlagAllSystem)
             return true;
 
-        IXIPC_HOOK_EVENT record{};
+        SKUGGA_IPC_HOOK_EVENT record{};
         const char *opName = WinsockOperationName(evt.Operation);
         if (!ShouldPublishWinsockHookEvent(opName, evt.Caller, &evt.Stack))
             return true;
 
         std::size_t sampleSize = std::min<std::size_t>(evt.DataSize, RTL_NUMBER_OF(record.DataSample));
 
-        record.Kind = IxIpcHookEventWinsock;
+        record.Kind = SkuggaIpcHookEventWinsock;
         record.ProcessId = GetCurrentProcessId();
         record.ThreadId = evt.ThreadId;
         record.Operation = static_cast<std::uint32_t>(evt.Operation);
@@ -257,38 +257,28 @@ namespace IX_RUNTIME_INTERNAL
         return PublishHookEvent(record);
     }
 
-    std::uint32_t CopyRegisterSnapshotSample(const NtCapturedEvent &evt, IXIPC_HOOK_EVENT &record) noexcept
+    std::uint32_t CopyRegisterSnapshotSample(const NtCapturedEvent &evt, SKUGGA_IPC_HOOK_EVENT &record) noexcept
     {
         if (!evt.HasRegisters || evt.Registers.Valid == 0)
         {
             return 0;
         }
 
-        char sample[IXIPC_MAX_HOOK_DATA_SAMPLE]{};
+        char sample[SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE]{};
         const NtRegisterSnapshot &r = evt.Registers;
-        int written = std::snprintf(sample,
-                                    sizeof(sample),
+        int written = std::snprintf(sample, sizeof(sample),
                                     "rip=0x%llX rsp=0x%llX rbp=0x%llX rax=0x%llX rbx=0x%llX rcx=0x%llX rdx=0x%llX "
                                     "rsi=0x%llX rdi=0x%llX r8=0x%llX r9=0x%llX r10=0x%llX r11=0x%llX r12=0x%llX "
                                     "r13=0x%llX r14=0x%llX r15=0x%llX eflags=0x%llX",
-                                    static_cast<unsigned long long>(r.Rip),
-                                    static_cast<unsigned long long>(r.Rsp),
-                                    static_cast<unsigned long long>(r.Rbp),
-                                    static_cast<unsigned long long>(r.Rax),
-                                    static_cast<unsigned long long>(r.Rbx),
-                                    static_cast<unsigned long long>(r.Rcx),
-                                    static_cast<unsigned long long>(r.Rdx),
-                                    static_cast<unsigned long long>(r.Rsi),
-                                    static_cast<unsigned long long>(r.Rdi),
-                                    static_cast<unsigned long long>(r.R8),
-                                    static_cast<unsigned long long>(r.R9),
-                                    static_cast<unsigned long long>(r.R10),
-                                    static_cast<unsigned long long>(r.R11),
-                                    static_cast<unsigned long long>(r.R12),
-                                    static_cast<unsigned long long>(r.R13),
-                                    static_cast<unsigned long long>(r.R14),
-                                    static_cast<unsigned long long>(r.R15),
-                                    static_cast<unsigned long long>(r.EFlags));
+                                    static_cast<unsigned long long>(r.Rip), static_cast<unsigned long long>(r.Rsp),
+                                    static_cast<unsigned long long>(r.Rbp), static_cast<unsigned long long>(r.Rax),
+                                    static_cast<unsigned long long>(r.Rbx), static_cast<unsigned long long>(r.Rcx),
+                                    static_cast<unsigned long long>(r.Rdx), static_cast<unsigned long long>(r.Rsi),
+                                    static_cast<unsigned long long>(r.Rdi), static_cast<unsigned long long>(r.R8),
+                                    static_cast<unsigned long long>(r.R9), static_cast<unsigned long long>(r.R10),
+                                    static_cast<unsigned long long>(r.R11), static_cast<unsigned long long>(r.R12),
+                                    static_cast<unsigned long long>(r.R13), static_cast<unsigned long long>(r.R14),
+                                    static_cast<unsigned long long>(r.R15), static_cast<unsigned long long>(r.EFlags));
 
         if (written <= 0)
         {
@@ -308,20 +298,20 @@ namespace IX_RUNTIME_INTERNAL
 
     bool SendNtEvent(const NtCapturedEvent &evt) noexcept
     {
-        using namespace IXIPC;
+        using namespace SKUGGA_IPC;
 
         auto cls = IC_STACKTRACE::ClassifyTrace(evt.Stack);
         const bool processTerminate = (evt.Operation == NtOperation::NtTerminateProcess);
         const bool policyEvent =
-            evt.PolicyAction != IXIPC_HOOK_ACTION_NONE || (evt.PolicyFlags & IXIPC_HOOK_RULE_FLAG_LOG) != 0;
+            evt.PolicyAction != SKUGGA_IPC_HOOK_ACTION_NONE || (evt.PolicyFlags & SKUGGA_IPC_HOOK_RULE_FLAG_LOG) != 0;
         if (!processTerminate && !policyEvent && (cls.Flags & IC_STACKTRACE::kCallerFlagAllSystem))
             return true;
 
-        IXIPC_HOOK_EVENT record{};
+        SKUGGA_IPC_HOOK_EVENT record{};
         const char *functionName =
             (evt.FunctionName != nullptr && evt.FunctionName[0] != '\0') ? evt.FunctionName : "NtCall";
 
-        record.Kind = IxIpcHookEventNt;
+        record.Kind = SkuggaIpcHookEventNt;
         record.ProcessId = GetCurrentProcessId();
         record.ThreadId = evt.ThreadId;
         record.Operation = static_cast<std::uint32_t>(evt.Operation);
@@ -458,8 +448,8 @@ namespace IX_RUNTIME_INTERNAL
         record.Status = static_cast<std::uint32_t>(evt.Status);
         record.Action = evt.PolicyAction;
         CopyHookStack(evt.Stack, record);
-        const bool registersCopied =
-            (evt.PolicyFlags & IXIPC_HOOK_RULE_FLAG_REGISTERS) != 0 && CopyRegisterSnapshotSample(evt, record) != 0;
+        const bool registersCopied = (evt.PolicyFlags & SKUGGA_IPC_HOOK_RULE_FLAG_REGISTERS) != 0 &&
+                                     CopyRegisterSnapshotSample(evt, record) != 0;
         if (!registersCopied && record.DataSize != 0)
         {
             CopyMemory(record.DataSample, evt.DataSample, record.DataSize);
@@ -472,7 +462,7 @@ namespace IX_RUNTIME_INTERNAL
 
     bool SendKiEvent(const KiCapturedEvent &evt) noexcept
     {
-        using namespace IXIPC;
+        using namespace SKUGGA_IPC;
 
         auto cls = IC_STACKTRACE::ClassifyTrace(evt.Stack);
         if (cls.Flags & IC_STACKTRACE::kCallerFlagAllSystem)
@@ -480,8 +470,8 @@ namespace IX_RUNTIME_INTERNAL
 
         const char *stubName = evt.StubName ? evt.StubName : "";
 
-        IXIPC_HOOK_EVENT record{};
-        record.Kind = IxIpcHookEventKi;
+        SKUGGA_IPC_HOOK_EVENT record{};
+        record.Kind = SkuggaIpcHookEventKi;
         record.ProcessId = GetCurrentProcessId();
         record.ThreadId = evt.ThreadId;
         record.Operation = 0;
@@ -498,20 +488,20 @@ namespace IX_RUNTIME_INTERNAL
 
     bool SendModuleEvent(const ModuleCapturedEvent &evt) noexcept
     {
-        using namespace IXIPC;
+        using namespace SKUGGA_IPC;
 
         auto cls = IC_STACKTRACE::ClassifyTrace(evt.Stack);
         if (cls.Flags & IC_STACKTRACE::kCallerFlagAllSystem)
             return true;
 
-        IXIPC_HOOK_EVENT record{};
+        SKUGGA_IPC_HOOK_EVENT record{};
         const char *functionName = ModuleOperationName(evt.Operation);
         if (!ShouldPublishModuleHookEvent(functionName, evt.Caller, &evt.Stack))
             return true;
 
         std::size_t sampleSize = std::min<std::size_t>(evt.NameSampleSize, RTL_NUMBER_OF(record.DataSample));
 
-        record.Kind = IxIpcHookEventModule;
+        record.Kind = SkuggaIpcHookEventModule;
         record.ProcessId = GetCurrentProcessId();
         record.ThreadId = evt.ThreadId;
         record.Operation = static_cast<std::uint32_t>(evt.Operation);
@@ -574,16 +564,14 @@ namespace IX_RUNTIME_INTERNAL
         }
     }
 
-    bool SendHookIntegrityEvent(std::uint32_t integrityMask,
-                                std::uint32_t winsockMismatches,
-                                std::uint32_t ntMismatches,
-                                std::uint32_t kiMismatches,
+    bool SendHookIntegrityEvent(std::uint32_t integrityMask, std::uint32_t winsockMismatches,
+                                std::uint32_t ntMismatches, std::uint32_t kiMismatches,
                                 std::uint32_t moduleMismatches) noexcept
     {
-        using namespace IXIPC;
+        using namespace SKUGGA_IPC;
 
-        IXIPC_HOOK_EVENT record{};
-        record.Kind = IxIpcHookEventIntegrity;
+        SKUGGA_IPC_HOOK_EVENT record{};
+        record.Kind = SkuggaIpcHookEventIntegrity;
         record.ProcessId = GetCurrentProcessId();
         record.ThreadId = GetCurrentThreadId();
         record.Operation = (integrityMask != 0u) ? kIntegrityOperationHookIntegrity : 0u;
@@ -600,15 +588,12 @@ namespace IX_RUNTIME_INTERNAL
             ((IX_HOOK_COMPONENT_INTEGRITY << IX_HOOK_CALLER_COMPONENT_SHIFT) & IX_HOOK_CALLER_COMPONENT_MASK);
         if (integrityMask != 0u)
         {
-            char summary[IXIPC_MAX_HOOK_DATA_SAMPLE]{};
-            int written = std::snprintf(summary,
-                                        sizeof(summary),
-                                        "own hook patch mismatch: mask=0x%08lX winsock=%lu nt=%lu ki=%lu module=%lu",
-                                        static_cast<unsigned long>(integrityMask),
-                                        static_cast<unsigned long>(winsockMismatches),
-                                        static_cast<unsigned long>(ntMismatches),
-                                        static_cast<unsigned long>(kiMismatches),
-                                        static_cast<unsigned long>(moduleMismatches));
+            char summary[SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE]{};
+            int written = std::snprintf(
+                summary, sizeof(summary), "own hook patch mismatch: mask=0x%08lX winsock=%lu nt=%lu ki=%lu module=%lu",
+                static_cast<unsigned long>(integrityMask), static_cast<unsigned long>(winsockMismatches),
+                static_cast<unsigned long>(ntMismatches), static_cast<unsigned long>(kiMismatches),
+                static_cast<unsigned long>(moduleMismatches));
             if (written > 0)
             {
                 std::size_t sampleSize = static_cast<std::size_t>(written);
@@ -666,9 +651,7 @@ namespace IX_RUNTIME_INTERNAL
         return false;
     }
 
-    const std::uint8_t *RvaToFilePointer(const std::uint8_t *imageBase,
-                                         std::size_t imageSize,
-                                         DWORD rva,
+    const std::uint8_t *RvaToFilePointer(const std::uint8_t *imageBase, std::size_t imageSize, DWORD rva,
                                          std::size_t bytesNeeded) noexcept
     {
         if (imageBase == nullptr || imageSize < sizeof(IMAGE_DOS_HEADER) || bytesNeeded == 0)
@@ -756,13 +739,8 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        fileHandle = CreateFileW(modulePath,
-                                 GENERIC_READ,
-                                 FILE_SHARE_READ | FILE_SHARE_DELETE,
-                                 nullptr,
-                                 OPEN_EXISTING,
-                                 FILE_ATTRIBUTE_NORMAL,
-                                 nullptr);
+        fileHandle = CreateFileW(modulePath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+                                 FILE_ATTRIBUTE_NORMAL, nullptr);
         if (fileHandle == INVALID_HANDLE_VALUE)
         {
             return false;
@@ -799,14 +777,10 @@ namespace IX_RUNTIME_INTERNAL
                             const auto *nameRvAs = reinterpret_cast<const DWORD *>(RvaToFilePointer(
                                 view, imageSize, exportDir->AddressOfNames, exportDir->NumberOfNames * sizeof(DWORD)));
                             const auto *nameOrdinals = reinterpret_cast<const WORD *>(
-                                RvaToFilePointer(view,
-                                                 imageSize,
-                                                 exportDir->AddressOfNameOrdinals,
+                                RvaToFilePointer(view, imageSize, exportDir->AddressOfNameOrdinals,
                                                  exportDir->NumberOfNames * sizeof(WORD)));
                             const auto *functionRvAs = reinterpret_cast<const DWORD *>(
-                                RvaToFilePointer(view,
-                                                 imageSize,
-                                                 exportDir->AddressOfFunctions,
+                                RvaToFilePointer(view, imageSize, exportDir->AddressOfFunctions,
                                                  exportDir->NumberOfFunctions * sizeof(DWORD)));
 
                             if (nameRvAs != nullptr && nameOrdinals != nullptr && functionRvAs != nullptr)
@@ -856,13 +830,8 @@ namespace IX_RUNTIME_INTERNAL
         return success;
     }
 
-    bool ProbeExportPatchState(const wchar_t *moduleName,
-                               const char *exportName,
-                               ExportProbeCache &cache,
-                               bool &present,
-                               bool &tampered,
-                               bool &suspicious,
-                               bool &expectedMismatch,
+    bool ProbeExportPatchState(const wchar_t *moduleName, const char *exportName, ExportProbeCache &cache,
+                               bool &present, bool &tampered, bool &suspicious, bool &expectedMismatch,
                                std::uint8_t sample[16]) noexcept
     {
         HMODULE moduleHandle = nullptr;
@@ -907,18 +876,13 @@ namespace IX_RUNTIME_INTERNAL
         return true;
     }
 
-    bool SendPatchTamperEvent(std::uint32_t operation,
-                              const char *apiName,
-                              const char *moduleName,
-                              bool tampered,
-                              bool suspicious,
-                              bool expectedMismatch,
-                              const std::uint8_t sample[16]) noexcept
+    bool SendPatchTamperEvent(std::uint32_t operation, const char *apiName, const char *moduleName, bool tampered,
+                              bool suspicious, bool expectedMismatch, const std::uint8_t sample[16]) noexcept
     {
-        using namespace IXIPC;
+        using namespace SKUGGA_IPC;
 
-        IXIPC_HOOK_EVENT record{};
-        record.Kind = IxIpcHookEventIntegrity;
+        SKUGGA_IPC_HOOK_EVENT record{};
+        record.Kind = SkuggaIpcHookEventIntegrity;
         record.ProcessId = GetCurrentProcessId();
         record.ThreadId = GetCurrentThreadId();
         record.Operation = operation;
@@ -946,8 +910,8 @@ namespace IX_RUNTIME_INTERNAL
         bool expectedMismatch = false;
         std::uint8_t sample[16]{};
 
-        if (ProbeExportPatchState(
-                L"amsi.dll", "AmsiScanBuffer", g_AmsiProbe, present, tampered, suspicious, expectedMismatch, sample))
+        if (ProbeExportPatchState(L"amsi.dll", "AmsiScanBuffer", g_AmsiProbe, present, tampered, suspicious,
+                                  expectedMismatch, sample))
         {
             if (present)
             {
@@ -955,13 +919,8 @@ namespace IX_RUNTIME_INTERNAL
                 g_AmsiFirstPoll = false;
                 bool publish =
                     stateChanged || (tampered && (now - g_LastAmsiPublishTick >= kPatchTamperRepublishPeriodMs));
-                if (publish && SendPatchTamperEvent(kIntegrityOperationAmsiPatch,
-                                                    "AmsiScanBuffer",
-                                                    "amsi",
-                                                    tampered,
-                                                    suspicious,
-                                                    expectedMismatch,
-                                                    sample))
+                if (publish && SendPatchTamperEvent(kIntegrityOperationAmsiPatch, "AmsiScanBuffer", "amsi", tampered,
+                                                    suspicious, expectedMismatch, sample))
                 {
                     g_LastAmsiPublishTick = now;
                 }
@@ -975,8 +934,8 @@ namespace IX_RUNTIME_INTERNAL
             }
         }
 
-        if (ProbeExportPatchState(
-                L"ntdll.dll", "EtwEventWrite", g_EtwProbe, present, tampered, suspicious, expectedMismatch, sample))
+        if (ProbeExportPatchState(L"ntdll.dll", "EtwEventWrite", g_EtwProbe, present, tampered, suspicious,
+                                  expectedMismatch, sample))
         {
             if (present)
             {
@@ -984,13 +943,8 @@ namespace IX_RUNTIME_INTERNAL
                 g_EtwFirstPoll = false;
                 bool publish =
                     stateChanged || (tampered && (now - g_LastEtwPublishTick >= kPatchTamperRepublishPeriodMs));
-                if (publish && SendPatchTamperEvent(kIntegrityOperationEtwPatch,
-                                                    "EtwEventWrite",
-                                                    "ntdll",
-                                                    tampered,
-                                                    suspicious,
-                                                    expectedMismatch,
-                                                    sample))
+                if (publish && SendPatchTamperEvent(kIntegrityOperationEtwPatch, "EtwEventWrite", "ntdll", tampered,
+                                                    suspicious, expectedMismatch, sample))
                 {
                     g_LastEtwPublishTick = now;
                 }

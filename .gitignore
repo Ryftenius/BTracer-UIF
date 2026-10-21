@@ -1,5 +1,6 @@
 /bin/
 /obj/
+/.baseline/
 *.aps
 *.ipch
 *.log
@@ -9,3 +10,16 @@
 *.VC.db
 *.VC.opendb
 .vs/
+*.pfx
+*.p12
+*.pem
+*.key
+*.pdb
+*.exe
+*.dll
+*.obj
+*.lib
+*.exp
+*.ilk
+/release/
+__pycache__/

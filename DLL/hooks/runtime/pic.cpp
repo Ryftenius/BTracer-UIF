@@ -156,8 +156,7 @@ namespace IX_RUNTIME_INTERNAL
             }
         }
 
-        extern "C" __declspec(noinline) void IxPicCallbackDispatch(std::uint64_t previousPc,
-                                                                   std::uint64_t previousSp,
+        extern "C" __declspec(noinline) void IxPicCallbackDispatch(std::uint64_t previousPc, std::uint64_t previousSp,
                                                                    std::uint32_t returnAbi) noexcept
         {
             UNREFERENCED_PARAMETER(returnAbi);
@@ -239,8 +238,7 @@ namespace IX_RUNTIME_INTERNAL
             g_PicStub = stub;
             g_PicStubRange.Base = reinterpret_cast<std::uint64_t>(stub);
             g_PicStubRange.End = g_PicStubRange.Base + kPicStubAllocationSize;
-            IxDbgLog("BuildPicCallbackStub: stub=%p dispatch=%p size=0x%lX",
-                     g_PicStub,
+            IxDbgLog("BuildPicCallbackStub: stub=%p dispatch=%p size=0x%lX", g_PicStub,
                      reinterpret_cast<void *>(&IxPicCallbackDispatch),
                      static_cast<unsigned long>(sizeof(templateBytes)));
             return true;
@@ -257,22 +255,19 @@ namespace IX_RUNTIME_INTERNAL
             IxDbgLog("RegisterPicProtection: begin callback=0x%llX size=0x%lX",
                      static_cast<unsigned long long>(callbackAddress),
                      static_cast<unsigned long>(kPicStubAllocationSize));
-            if (!IXIPC::RegisterInstrumentationRange(
-                    callbackAddress, kPicStubAllocationSize, IX_INSTRUMENTATION_FLAG_PROCESS_CALLBACK, "rt.pic"))
+            if (!SKUGGA_IPC::RegisterInstrumentationRange(callbackAddress, kPicStubAllocationSize,
+                                                          IX_INSTRUMENTATION_FLAG_PROCESS_CALLBACK, "rt.pic"))
             {
-                IxRuntimeReportFault(IxRuntimeFaultCode::ProcessInstrumentationCallbackProtectFailed,
-                                     callbackAddress,
+                IxRuntimeReportFault(IxRuntimeFaultCode::ProcessInstrumentationCallbackProtectFailed, callbackAddress,
                                      kPicStubAllocationSize);
                 return false;
             }
 
-            if (!IXIPC::RegisterProcessInstrumentationCallback(callbackAddress,
-                                                               kPicStubAllocationSize,
-                                                               IX_PROCESS_INSTRUMENTATION_CALLBACK_FLAG_X64 |
-                                                                   IX_PROCESS_INSTRUMENTATION_CALLBACK_FLAG_SENSOR))
+            if (!SKUGGA_IPC::RegisterProcessInstrumentationCallback(
+                    callbackAddress, kPicStubAllocationSize,
+                    IX_PROCESS_INSTRUMENTATION_CALLBACK_FLAG_X64 | IX_PROCESS_INSTRUMENTATION_CALLBACK_FLAG_SENSOR))
             {
-                IxRuntimeReportFault(IxRuntimeFaultCode::ProcessInstrumentationCallbackProtectFailed,
-                                     callbackAddress,
+                IxRuntimeReportFault(IxRuntimeFaultCode::ProcessInstrumentationCallbackProtectFailed, callbackAddress,
                                      kPicStubAllocationSize);
                 return false;
             }
@@ -284,12 +279,11 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        bool PublishPicDirectSyscallSample(const PicSample &sample,
-                                           const MEMORY_BASIC_INFORMATION &mbi,
+        bool PublishPicDirectSyscallSample(const PicSample &sample, const MEMORY_BASIC_INFORMATION &mbi,
                                            ULONG protect) noexcept
         {
-            IXIPC_HOOK_EVENT record{};
-            record.Kind = IxIpcHookEventIntegrity;
+            SKUGGA_IPC_HOOK_EVENT record{};
+            record.Kind = SkuggaIpcHookEventIntegrity;
             record.ProcessId = GetCurrentProcessId();
             record.ThreadId = static_cast<UINT32>(sample.ThreadId & 0xFFFFFFFFull);
             record.Operation = IX_HOOK_EVENT_OP_PIC_DIRECT_SYSCALL;
@@ -309,7 +303,7 @@ namespace IX_RUNTIME_INTERNAL
                  << IX_HOOK_CALLER_IMMED_SHIFT);
             (void)StringCchCopyA(record.ApiName, RTL_NUMBER_OF(record.ApiName), "ProcessInstrumentationCallback");
             (void)StringCchCopyA(record.ModuleName, RTL_NUMBER_OF(record.ModuleName), "Runtime");
-            return IXIPC::PublishHookEvent(record);
+            return SKUGGA_IPC::PublishHookEvent(record);
         }
 
         bool PicProtectIsExecutable(ULONG protect) noexcept

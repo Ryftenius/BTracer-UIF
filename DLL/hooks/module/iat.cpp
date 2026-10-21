@@ -19,8 +19,7 @@ namespace IX_MODULE_INTERNAL
             HMODULE module = nullptr;
             if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                                        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                                   reinterpret_cast<LPCSTR>(&OwnModuleBase),
-                                   &module))
+                                   reinterpret_cast<LPCSTR>(&OwnModuleBase), &module))
             {
                 s_ownModule = module;
             }
@@ -124,8 +123,7 @@ namespace IX_MODULE_INTERNAL
             return true;
         }
 
-        bool ImportNameMatches(const std::uint8_t *moduleBase,
-                               IMAGE_THUNK_DATA *nameThunk,
+        bool ImportNameMatches(const std::uint8_t *moduleBase, IMAGE_THUNK_DATA *nameThunk,
                                const char *exportName) noexcept
         {
             if (nameThunk == nullptr || IMAGE_SNAP_BY_ORDINAL(nameThunk->u1.Ordinal))
@@ -196,8 +194,8 @@ namespace IX_MODULE_INTERNAL
                         void *current = reinterpret_cast<void *>(iatThunk[thunkIndex].u1.Function);
                         const bool namedMatch =
                             descriptorModuleMatches &&
-                            ImportNameMatches(
-                                base, nameThunk != nullptr ? &nameThunk[thunkIndex] : nullptr, hook.ExportName);
+                            ImportNameMatches(base, nameThunk != nullptr ? &nameThunk[thunkIndex] : nullptr,
+                                              hook.ExportName);
                         const bool addressMatch = current == hook.TargetAddress;
                         if ((namedMatch || addressMatch) && PatchIatSlot(hook, slot, replacement))
                         {
@@ -334,12 +332,12 @@ namespace IX_MODULE_INTERNAL
     bool RefreshModuleIatHook(InlineHook &hook, HMODULE moduleHandle) noexcept
     {
         if (!hook.Installed || moduleHandle == nullptr ||
-            (hook.HookMethod != IXIPC_HOOK_METHOD_IAT && hook.HookMethod != IXIPC_HOOK_METHOD_SHADOW_IAT))
+            (hook.HookMethod != SKUGGA_IPC_HOOK_METHOD_IAT && hook.HookMethod != SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT))
         {
             return false;
         }
 
-        void *replacement = hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT ? hook.IatThunk : hook.HookEntry;
+        void *replacement = hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT ? hook.IatThunk : hook.HookEntry;
         const std::size_t before = hook.IatSlotCount;
         (void)PatchModuleImports(hook, moduleHandle, replacement);
         return hook.IatSlotCount != before;
@@ -362,7 +360,7 @@ namespace IX_MODULE_INTERNAL
             return false;
         }
 
-        void *replacement = hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT ? hook.IatThunk : hook.HookEntry;
+        void *replacement = hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT ? hook.IatThunk : hook.HookEntry;
         for (std::size_t i = 0; i < hook.IatSlotCount && i < RTL_NUMBER_OF(hook.IatSlots); ++i)
         {
             void **slot = hook.IatSlots[i];

@@ -1,7 +1,7 @@
 #include "controller.h"
 #include "stack_fabricate.h"
 
-#include "../../ABI/blind_ipc.h"
+#include "../../ABI/skugga_ipc.h"
 
 #include <cstring>
 #include <utility>
@@ -16,7 +16,7 @@ namespace
 {
     constexpr std::size_t kMaxQueuedHookEvents = 512;
     constexpr std::size_t kMaxQueueDedupeScan = 128;
-    constexpr std::size_t kMaxCapturedPayloadBytes = IXIPC_MAX_HOOK_DATA_SAMPLE;
+    constexpr std::size_t kMaxCapturedPayloadBytes = SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE;
     constexpr std::uint32_t kMaxCapturedBufferCount = 16;
     constexpr std::uint32_t kRepeatCountLimit = 0xFFFFFFFFu;
 
@@ -51,9 +51,7 @@ namespace
         return true;
     }
 
-    IX_FORCEINLINE bool BytesEqual(const std::uint8_t *left,
-                                   std::size_t leftSize,
-                                   const std::uint8_t *right,
+    IX_FORCEINLINE bool BytesEqual(const std::uint8_t *left, std::size_t leftSize, const std::uint8_t *right,
                                    std::size_t rightSize) noexcept
     {
         if (leftSize != rightSize)
@@ -158,7 +156,7 @@ namespace
         {
             return false;
         }
-        if (((left.PolicyFlags | right.PolicyFlags) & IXIPC_HOOK_RULE_FLAG_REGISTERS) != 0)
+        if (((left.PolicyFlags | right.PolicyFlags) & SKUGGA_IPC_HOOK_RULE_FLAG_REGISTERS) != 0)
         {
             return false;
         }
@@ -234,8 +232,8 @@ namespace
     }
 
     template <typename T, typename EqualFn, typename InterestingFn>
-    bool TryQueueCoalescedEvent(
-        std::mutex &mutex, std::vector<T> &queue, T &&event, EqualFn equals, InterestingFn isInteresting) noexcept
+    bool TryQueueCoalescedEvent(std::mutex &mutex, std::vector<T> &queue, T &&event, EqualFn equals,
+                                InterestingFn isInteresting) noexcept
     {
         bool queued = false;
         try
@@ -316,11 +314,17 @@ namespace
 
     template <typename T> void ConsumeQueuedEvents(std::mutex &mutex, std::vector<T> &queue, std::vector<T> &out)
     {
+        // Hook callbacks can arrive while the caller already owns the process
+        // heap lock. Never allocate or destroy heap-backed event storage while
+        // holding the queue mutex, or the consumer and producer can deadlock
+        // with opposite heap/mutex acquisition order.
+        out.clear();
+        std::vector<T> replacement;
+        ReserveQueueStorage(replacement);
         {
             std::lock_guard<std::mutex> lock(mutex);
-            out.clear();
             out.swap(queue);
-            ReserveQueueStorage(queue);
+            queue.swap(replacement);
         }
     }
 } // namespace
@@ -439,8 +443,8 @@ void WinsockHookController::EnqueueEvent(const WinsockHookContext &context)
 
     IC_STACKTRACE::Capture(evt.Stack, 2);
 
-    (void)TryQueueCoalescedEvent(
-        s_QueueMutex, s_Queue, std::move(evt), WinsockEventKeyEquals, WinsockEventIsInteresting);
+    (void)TryQueueCoalescedEvent(s_QueueMutex, s_Queue, std::move(evt), WinsockEventKeyEquals,
+                                 WinsockEventIsInteresting);
 }
 
 bool NtHookController::s_Initialized = false;
@@ -540,9 +544,9 @@ void NtHookController::EnqueueEvent(const NtHookContext &context)
     evt.Registers = context.Registers;
 
     evt.Stack = context.Stack;
-    if ((evt.PolicyFlags & IXIPC_HOOK_RULE_FLAG_STACK_FABRICATE) != 0)
+    if ((evt.PolicyFlags & SKUGGA_IPC_HOOK_RULE_FLAG_STACK_FABRICATE) != 0)
     {
-        IX_STACK_FABRICATE::SanitizeBlindFrames(evt.Stack);
+        IX_STACK_FABRICATE::SanitizeSkuggaFrames(evt.Stack);
     }
 
     (void)TryQueueCoalescedEvent(s_QueueMutex, s_Queue, std::move(evt), NtEventKeyEquals, NtEventIsInteresting);
@@ -728,7 +732,7 @@ void ModuleHookController::EnqueueEvent(const ModuleHookContext &context)
     IC_STACKTRACE::Capture(evt.Stack, 2);
     if (IX_RUNTIME_INTERNAL::ShouldSanitizeModuleHookStackByPolicy(evt.FunctionName))
     {
-        IX_STACK_FABRICATE::SanitizeBlindFrames(evt.Stack);
+        IX_STACK_FABRICATE::SanitizeSkuggaFrames(evt.Stack);
     }
 
     (void)TryQueueCoalescedEvent(s_QueueMutex, s_Queue, std::move(evt), ModuleEventKeyEquals, ModuleEventIsInteresting);

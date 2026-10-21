@@ -12,17 +12,17 @@ namespace IX_NT_METHODS
 
     bool InstallNtHookPatch(NtHookPatch &patch) noexcept
     {
-        if (patch.Method == IXIPC_HOOK_METHOD_INT3)
+        if (patch.Method == SKUGGA_IPC_HOOK_METHOD_INT3)
         {
             return InstallNtInt3Hook(patch);
         }
-        patch.Method = IXIPC_HOOK_METHOD_INLINE;
+        patch.Method = SKUGGA_IPC_HOOK_METHOD_INLINE;
         return InstallNtInlineHook(patch);
     }
 
     void RemoveNtHookPatch(const NtHookPatch &patch) noexcept
     {
-        if (patch.Method == IXIPC_HOOK_METHOD_INT3)
+        if (patch.Method == SKUGGA_IPC_HOOK_METHOD_INT3)
         {
             RemoveNtInt3Hook(patch);
             return;
@@ -32,7 +32,7 @@ namespace IX_NT_METHODS
 
     bool CheckNtHookPatch(const NtHookPatch &patch) noexcept
     {
-        if (patch.Method == IXIPC_HOOK_METHOD_INT3)
+        if (patch.Method == SKUGGA_IPC_HOOK_METHOD_INT3)
         {
             return CheckNtInt3Hook(patch);
         }
@@ -41,7 +41,7 @@ namespace IX_NT_METHODS
 
     std::size_t NtHookPatchSize(std::uint32_t method) noexcept
     {
-        if (method == IXIPC_HOOK_METHOD_INT3)
+        if (method == SKUGGA_IPC_HOOK_METHOD_INT3)
         {
             return 2u;
         }
@@ -54,6 +54,6 @@ namespace IX_NT_METHODS
 
     std::uint32_t NtHookPatchFlag(std::uint32_t method) noexcept
     {
-        return method == IXIPC_HOOK_METHOD_INT3 ? IX_HOOK_PATCH_FLAG_NT_INT3 : IX_HOOK_PATCH_FLAG_NT_INLINE;
+        return method == SKUGGA_IPC_HOOK_METHOD_INT3 ? IX_HOOK_PATCH_FLAG_NT_INT3 : IX_HOOK_PATCH_FLAG_NT_INLINE;
     }
 } // namespace IX_NT_METHODS

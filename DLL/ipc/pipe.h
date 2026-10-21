@@ -10,9 +10,9 @@
 
 #include <windows.h>
 #include <cstdint>
-#include "../../ABI/blind_ipc.h"
+#include "../../ABI/skugga_ipc.h"
 
-namespace IXIPC
+namespace SKUGGA_IPC
 {
     inline constexpr DWORD PIPE_DEFAULT_TIMEOUT_MS = 5000;
 
@@ -47,22 +47,18 @@ namespace IXIPC
 
     bool WriteRaw(const void *data, DWORD size);
     bool ReadRaw(void *buffer, DWORD size, DWORD &bytesRead);
-    bool PublishHookEvent(const IXIPC_HOOK_EVENT &eventRecord);
-    bool PublishHookEventSynchronously(const IXIPC_HOOK_EVENT &eventRecord) noexcept;
+    bool PublishHookEvent(const SKUGGA_IPC_HOOK_EVENT &eventRecord);
+    bool PublishHookEventSynchronously(const SKUGGA_IPC_HOOK_EVENT &eventRecord) noexcept;
     UINT32 DrainPendingHookEventsSynchronously(UINT32 maxEvents = 64) noexcept;
     bool NotifyHookReady(UINT32 readyMask, UINT32 *observedMaskOut = nullptr, UINT32 *pendingCommandOut = nullptr);
-    bool QueryHookPolicy(IXIPC_QUERY_HOOK_POLICY_RESPONSE &policyOut) noexcept;
+    bool QueryHookPolicy(SKUGGA_IPC_QUERY_HOOK_POLICY_RESPONSE &policyOut) noexcept;
     /* Registers a memory range as runtime-owned instrumentation so the
        controller excludes it from heuristics
 
      * * and exposes it in diagnostics. */
     bool RegisterInstrumentationRange(UINT64 baseAddress, UINT64 regionSize, UINT32 flags, const char *tag) noexcept;
-    bool RegisterHookPatch(UINT64 patchAddress,
-                           UINT32 patchSize,
-                           const UINT8 *originalBytes,
-                           UINT32 originalSize,
-                           UINT32 flags,
-                           const char *tag) noexcept;
+    bool RegisterHookPatch(UINT64 patchAddress, UINT32 patchSize, const UINT8 *originalBytes, UINT32 originalSize,
+                           UINT32 flags, const char *tag) noexcept;
     bool RegisterProcessInstrumentationCallback(UINT64 callbackAddress, UINT64 callbackSize, UINT32 flags) noexcept;
     bool IsProtectedIpcHandleValue(UINT64 handleValue) noexcept;
 
@@ -79,4 +75,4 @@ namespace IXIPC
 
         return bytesRead == sizeof(T);
     }
-} // namespace IXIPC
+} // namespace SKUGGA_IPC

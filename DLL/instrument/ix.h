@@ -1,3 +1,3 @@
 #pragma once
 
-#include "../../SDK/include/blind/blind_veh.h"
+#include "../../SDK/include/skugga/skugga_veh.h"

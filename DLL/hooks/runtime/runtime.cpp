@@ -42,8 +42,8 @@ namespace
         }
 
         DWORD expected = TLS_OUT_OF_INDEXES;
-        if (!g_IxCallDepthTls.compare_exchange_strong(
-                expected, created, std::memory_order_acq_rel, std::memory_order_acquire))
+        if (!g_IxCallDepthTls.compare_exchange_strong(expected, created, std::memory_order_acq_rel,
+                                                      std::memory_order_acquire))
         {
             TlsFree(created);
             return expected;
@@ -140,7 +140,7 @@ void IxDbgLog(_In_z_ _Printf_format_string_ PCSTR format, ...) noexcept
 
     char disableFileLog[8]{};
     DWORD disableFileLogChars =
-        GetEnvironmentVariableA("BLIND_DISABLE_FILE_LOG", disableFileLog, RTL_NUMBER_OF(disableFileLog));
+        GetEnvironmentVariableA("SKUGGA_DISABLE_FILE_LOG", disableFileLog, RTL_NUMBER_OF(disableFileLog));
     if (disableFileLogChars > 0 && disableFileLogChars < RTL_NUMBER_OF(disableFileLog) &&
         (lstrcmpiA(disableFileLog, "1") == 0 || lstrcmpiA(disableFileLog, "true") == 0 ||
          lstrcmpiA(disableFileLog, "yes") == 0))
@@ -149,9 +149,9 @@ void IxDbgLog(_In_z_ _Printf_format_string_ PCSTR format, ...) noexcept
     }
 
     char programData[MAX_PATH]{};
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
     char logDir[MAX_PATH]{};
-    DWORD logDirChars = GetEnvironmentVariableA("BLIND_LOG_DIR", logDir, RTL_NUMBER_OF(logDir));
+    DWORD logDirChars = GetEnvironmentVariableA("SKUGGA_LOG_DIR", logDir, RTL_NUMBER_OF(logDir));
     if (logDirChars == 0 || logDirChars >= RTL_NUMBER_OF(logDir))
     {
         DWORD programDataChars = GetEnvironmentVariableA("ProgramData", programData, RTL_NUMBER_OF(programData));
@@ -161,14 +161,14 @@ void IxDbgLog(_In_z_ _Printf_format_string_ PCSTR format, ...) noexcept
         }
 
         char rootDir[MAX_PATH]{};
-        (void)StringCchPrintfA(rootDir, RTL_NUMBER_OF(rootDir), "%s\\BLIND", programData);
+        (void)StringCchPrintfA(rootDir, RTL_NUMBER_OF(rootDir), "%s\\SKUGGA", programData);
         (void)CreateDirectoryA(rootDir, nullptr);
         (void)StringCchPrintfA(logDir, RTL_NUMBER_OF(logDir), "%s\\logs", rootDir);
     }
     (void)CreateDirectoryA(logDir, nullptr);
 
     char logPath[MAX_PATH]{};
-    (void)StringCchPrintfA(logPath, RTL_NUMBER_OF(logPath), "%s\\blind-runtime-%lu.log", logDir, pid);
+    (void)StringCchPrintfA(logPath, RTL_NUMBER_OF(logPath), "%s\\skugga-runtime-%lu.log", logDir, pid);
 #else
     static constexpr IxEncodedAnsiLiteral kProgramDataEnv{"ProgramData", 0x2Fu};
     {
@@ -187,7 +187,7 @@ void IxDbgLog(_In_z_ _Printf_format_string_ PCSTR format, ...) noexcept
     char nodeDir[MAX_PATH]{};
     char rootDir[MAX_PATH]{};
     {
-        static constexpr IxEncodedAnsiLiteral kRootFormat{"%s\\BLIND", 0x43u};
+        static constexpr IxEncodedAnsiLiteral kRootFormat{"%s\\SKUGGA", 0x43u};
         IxScopedAnsiLiteral rootFormat(kRootFormat);
         (void)StringCchPrintfA(rootDir, RTL_NUMBER_OF(rootDir), rootFormat.c_str(), programData);
     }
@@ -207,18 +207,13 @@ void IxDbgLog(_In_z_ _Printf_format_string_ PCSTR format, ...) noexcept
 
     char logPath[MAX_PATH]{};
     {
-        static constexpr IxEncodedAnsiLiteral kLogFileFormat{"%s\\blind-%lu.log", 0x7Fu};
+        static constexpr IxEncodedAnsiLiteral kLogFileFormat{"%s\\skugga-%lu.log", 0x7Fu};
         IxScopedAnsiLiteral logFileFormat(kLogFileFormat);
         (void)StringCchPrintfA(logPath, RTL_NUMBER_OF(logPath), logFileFormat.c_str(), logDir, pid);
     }
 #endif
-    HANDLE logFile = CreateFileA(logPath,
-                                 FILE_APPEND_DATA,
-                                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                 nullptr,
-                                 OPEN_ALWAYS,
-                                 FILE_ATTRIBUTE_NORMAL,
-                                 nullptr);
+    HANDLE logFile = CreateFileA(logPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                 nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (logFile != INVALID_HANDLE_VALUE)
     {
         DWORD written = 0;
@@ -229,10 +224,8 @@ void IxDbgLog(_In_z_ _Printf_format_string_ PCSTR format, ...) noexcept
 
 void IxRuntimeReportFault(IxRuntimeFaultCode code, std::uint64_t arg0, std::uint64_t arg1) noexcept
 {
-    IxDbgLog("Fault code=%lu arg0=0x%llX arg1=0x%llX",
-             static_cast<unsigned long>(code),
-             static_cast<unsigned long long>(arg0),
-             static_cast<unsigned long long>(arg1));
+    IxDbgLog("Fault code=%lu arg0=0x%llX arg1=0x%llX", static_cast<unsigned long>(code),
+             static_cast<unsigned long long>(arg0), static_cast<unsigned long long>(arg1));
 }
 
 namespace IX_RUNTIME_INTERNAL
@@ -271,8 +264,8 @@ namespace IX_RUNTIME_INTERNAL
             std::uint64_t Reference0 = 0;
             std::uint64_t Reference1 = 0;
             MEMORY_BASIC_INFORMATION Memory{};
-            char Owner[IXIPC_MAX_HOOK_MODULE_NAME]{};
-            char Name[IXIPC_MAX_HOOK_API_NAME]{};
+            char Owner[SKUGGA_IPC_MAX_HOOK_MODULE_NAME]{};
+            char Name[SKUGGA_IPC_MAX_HOOK_API_NAME]{};
         };
         volatile LONG g_IxSelfMapPublishing = 0;
         ULONGLONG g_LastIxSelfMapScanTick = 0;
@@ -497,7 +490,7 @@ namespace IX_RUNTIME_INTERNAL
     std::atomic<bool> g_RuntimeInitialized{false};
     std::atomic<bool> g_RuntimeWorkerStarted{false};
     std::atomic<std::uint32_t> g_LastPublishedHookReadyMask{0};
-    IxBlindTelemetryArguments g_RuntimeVehArgs{};
+    IxSkuggaTelemetryArguments g_RuntimeVehArgs{};
     std::atomic<bool> g_LaunchGatePrepared{false};
     std::atomic<bool> g_LaunchGateReady{false};
     std::atomic<bool> g_LaunchGateDeferredOpen{false};
@@ -508,15 +501,12 @@ namespace IX_RUNTIME_INTERNAL
     LONG g_LaunchGateInitializerAssigned = 0;
     LaunchGateCallbacks g_LaunchGateCallbacks{};
 
-    IxIhrToken RegisterIndirectHandle(
-        void *pointer, std::uint64_t size, IxIhrType type, std::uint32_t flags, const char *tag) noexcept
+    IxIhrToken RegisterIndirectHandle(void *pointer, std::uint64_t size, IxIhrType type, std::uint32_t flags,
+                                      const char *tag) noexcept
     {
-        IxDbgLog("RegisterIndirectHandle: begin pointer=%p size=0x%llX type=%lu flags=0x%08lX tag=%s",
-                 pointer,
-                 static_cast<unsigned long long>(size),
-                 static_cast<unsigned long>(type),
-                 static_cast<unsigned long>(flags),
-                 tag != nullptr ? tag : "<null>");
+        IxDbgLog("RegisterIndirectHandle: begin pointer=%p size=0x%llX type=%lu flags=0x%08lX tag=%s", pointer,
+                 static_cast<unsigned long long>(size), static_cast<unsigned long>(type),
+                 static_cast<unsigned long>(flags), tag != nullptr ? tag : "<null>");
         if (pointer == nullptr)
         {
             IxDbgLog("RegisterIndirectHandle: null pointer");
@@ -558,8 +548,7 @@ namespace IX_RUNTIME_INTERNAL
                 entry.TagHash = tagHash;
                 IxIhrToken token = EncodeToken(static_cast<std::uint16_t>(i + 1), numericType, entry.Generation);
                 ReleaseSRWLockExclusive(&g_IndirectHandleLock);
-                IxDbgLog("RegisterIndirectHandle: updated slot=%zu token=0x%llX",
-                         i + 1,
+                IxDbgLog("RegisterIndirectHandle: updated slot=%zu token=0x%llX", i + 1,
                          static_cast<unsigned long long>(token));
                 return token;
             }
@@ -589,10 +578,8 @@ namespace IX_RUNTIME_INTERNAL
 
         IxIhrToken token = EncodeToken(static_cast<std::uint16_t>(freeIndex + 1), numericType, generation);
         ReleaseSRWLockExclusive(&g_IndirectHandleLock);
-        IxDbgLog("RegisterIndirectHandle: created slot=%zu generation=0x%08lX token=0x%llX",
-                 freeIndex + 1,
-                 static_cast<unsigned long>(generation),
-                 static_cast<unsigned long long>(token));
+        IxDbgLog("RegisterIndirectHandle: created slot=%zu generation=0x%08lX token=0x%llX", freeIndex + 1,
+                 static_cast<unsigned long>(generation), static_cast<unsigned long long>(token));
         return token;
     }
 
@@ -650,18 +637,10 @@ namespace IX_RUNTIME_INTERNAL
         ReleaseSRWLockExclusive(&g_IndirectHandleLock);
     }
 
-    static bool AddIxSelfMapEntry(IxSelfMapEntry *entries,
-                                  std::size_t capacity,
-                                  std::uint32_t &count,
-                                  std::uint32_t &truncated,
-                                  std::uint32_t kind,
-                                  const char *owner,
-                                  const char *name,
-                                  std::uint64_t address,
-                                  std::uint64_t size,
-                                  std::uint32_t flags,
-                                  std::uint64_t reference0 = 0,
-                                  std::uint64_t reference1 = 0) noexcept
+    static bool AddIxSelfMapEntry(IxSelfMapEntry *entries, std::size_t capacity, std::uint32_t &count,
+                                  std::uint32_t &truncated, std::uint32_t kind, const char *owner, const char *name,
+                                  std::uint64_t address, std::uint64_t size, std::uint32_t flags,
+                                  std::uint64_t reference0 = 0, std::uint64_t reference1 = 0) noexcept
     {
         if (entries == nullptr || capacity == 0)
         {
@@ -722,13 +701,11 @@ namespace IX_RUNTIME_INTERNAL
         return hash != 0 ? hash : 1ull;
     }
 
-    static void PublishIxSelfMapEntry(const IxSelfMapEntry &entry,
-                                      std::uint32_t index,
-                                      std::uint32_t total,
+    static void PublishIxSelfMapEntry(const IxSelfMapEntry &entry, std::uint32_t index, std::uint32_t total,
                                       std::uint32_t truncated) noexcept
     {
-        IXIPC_HOOK_EVENT record{};
-        record.Kind = IxIpcHookEventIntegrity;
+        SKUGGA_IPC_HOOK_EVENT record{};
+        record.Kind = SkuggaIpcHookEventIntegrity;
         record.ProcessId = GetCurrentProcessId();
         record.ThreadId = GetCurrentThreadId();
         record.Operation = IX_HOOK_EVENT_OP_IX_SELF_MAP_ENTRY;
@@ -750,8 +727,8 @@ namespace IX_RUNTIME_INTERNAL
         record.CallerFlags =
             ((IX_HOOK_COMPONENT_INTEGRITY << IX_HOOK_CALLER_COMPONENT_SHIFT) & IX_HOOK_CALLER_COMPONENT_MASK);
         (void)StringCchCopyA(record.ApiName, RTL_NUMBER_OF(record.ApiName), "IxSelfMap");
-        (void)StringCchCopyA(
-            record.ModuleName, RTL_NUMBER_OF(record.ModuleName), entry.Owner[0] != '\0' ? entry.Owner : "Runtime");
+        (void)StringCchCopyA(record.ModuleName, RTL_NUMBER_OF(record.ModuleName),
+                             entry.Owner[0] != '\0' ? entry.Owner : "Runtime");
 
         const std::size_t sampleChars = strnlen_s(entry.Name, RTL_NUMBER_OF(entry.Name));
         if (sampleChars != 0)
@@ -760,12 +737,10 @@ namespace IX_RUNTIME_INTERNAL
             CopyMemory(record.DataSample, entry.Name, sampleBytes);
             record.DataSize = static_cast<std::uint32_t>(sampleBytes);
         }
-        (void)IXIPC::PublishHookEvent(record);
+        (void)SKUGGA_IPC::PublishHookEvent(record);
     }
 
-    static void CollectIxIndirectHandleSelfMap(IxSelfMapEntry *entries,
-                                               std::size_t capacity,
-                                               std::uint32_t &count,
+    static void CollectIxIndirectHandleSelfMap(IxSelfMapEntry *entries, std::size_t capacity, std::uint32_t &count,
                                                std::uint32_t &truncated) noexcept
     {
         AcquireSRWLockShared(&g_IndirectHandleLock);
@@ -783,33 +758,19 @@ namespace IX_RUNTIME_INTERNAL
                 continue;
             }
 
-            char name[IXIPC_MAX_HOOK_API_NAME]{};
-            (void)StringCchPrintfA(name,
-                                   RTL_NUMBER_OF(name),
-                                   "ihr.%s slot=%zu tag=0x%08lX gen=0x%08lX",
-                                   IxSelfMapIhrTypeName(handle.Type),
-                                   i + 1,
-                                   static_cast<unsigned long>(handle.TagHash),
+            char name[SKUGGA_IPC_MAX_HOOK_API_NAME]{};
+            (void)StringCchPrintfA(name, RTL_NUMBER_OF(name), "indirect.%s slot=%zu tag=0x%08lX gen=0x%08lX",
+                                   IxSelfMapIhrTypeName(handle.Type), i + 1, static_cast<unsigned long>(handle.TagHash),
                                    static_cast<unsigned long>(handle.Generation));
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_INDIRECT_HANDLE,
-                                    "IHR",
-                                    name,
-                                    reinterpret_cast<std::uint64_t>(pointer),
-                                    handle.Size,
-                                    handle.Flags | IX_SELF_MAP_FLAG_REFERENCE,
-                                    static_cast<std::uint64_t>(i + 1),
-                                    (static_cast<std::uint64_t>(handle.Type) << 32) | handle.TagHash);
+            (void)AddIxSelfMapEntry(
+                entries, capacity, count, truncated, IX_SELF_MAP_KIND_INDIRECT_HANDLE, "skugga.indirect-handles", name,
+                reinterpret_cast<std::uint64_t>(pointer), handle.Size, handle.Flags | IX_SELF_MAP_FLAG_REFERENCE,
+                static_cast<std::uint64_t>(i + 1), (static_cast<std::uint64_t>(handle.Type) << 32) | handle.TagHash);
         }
         ReleaseSRWLockShared(&g_IndirectHandleLock);
     }
 
-    static void CollectIxHookPatchSelfMap(IxSelfMapEntry *entries,
-                                          std::size_t capacity,
-                                          std::uint32_t &count,
+    static void CollectIxHookPatchSelfMap(IxSelfMapEntry *entries, std::size_t capacity, std::uint32_t &count,
                                           std::uint32_t &truncated) noexcept
     {
         constexpr std::size_t kMaxNtPatches = 64;
@@ -817,17 +778,11 @@ namespace IX_RUNTIME_INTERNAL
         std::size_t ntPatchCount = IxCollectNtHookPatchInfos(ntPatches, kMaxNtPatches);
         for (std::size_t i = 0; i < ntPatchCount; ++i)
         {
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_HOOK_PATCH,
-                                    "HookPatch",
-                                    ntPatches[i].HookName ? ntPatches[i].HookName : "nt",
+            (void)AddIxSelfMapEntry(entries, capacity, count, truncated, IX_SELF_MAP_KIND_HOOK_PATCH,
+                                    "skugga.hook-patch", ntPatches[i].HookName ? ntPatches[i].HookName : "nt",
                                     reinterpret_cast<std::uint64_t>(ntPatches[i].PatchAddress),
                                     static_cast<std::uint64_t>(ntPatches[i].PatchSize),
-                                    IX_HOOK_PATCH_FLAG_NT_INLINE | IX_SELF_MAP_FLAG_GUARDED,
-                                    0,
+                                    IX_HOOK_PATCH_FLAG_NT_INLINE | IX_SELF_MAP_FLAG_GUARDED, 0,
                                     IX_HOOK_PATCH_FLAG_NT_INLINE);
         }
 
@@ -836,18 +791,12 @@ namespace IX_RUNTIME_INTERNAL
         std::size_t winsockPatchCount = IxCollectWinsockHookPatchInfos(winsockPatches, kMaxWinsockPatches);
         for (std::size_t i = 0; i < winsockPatchCount; ++i)
         {
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_HOOK_PATCH,
-                                    "HookPatch",
+            (void)AddIxSelfMapEntry(entries, capacity, count, truncated, IX_SELF_MAP_KIND_HOOK_PATCH,
+                                    "skugga.hook-patch",
                                     winsockPatches[i].HookName ? winsockPatches[i].HookName : "winsock",
                                     reinterpret_cast<std::uint64_t>(winsockPatches[i].PatchAddress),
                                     static_cast<std::uint64_t>(winsockPatches[i].PatchSize),
-                                    winsockPatches[i].Flags | IX_SELF_MAP_FLAG_GUARDED,
-                                    0,
-                                    winsockPatches[i].Flags);
+                                    winsockPatches[i].Flags | IX_SELF_MAP_FLAG_GUARDED, 0, winsockPatches[i].Flags);
         }
 
         constexpr std::size_t kMaxKiPatches = 4;
@@ -855,18 +804,11 @@ namespace IX_RUNTIME_INTERNAL
         std::size_t kiPatchCount = IxCollectKiHookPatchInfos(kiPatches, kMaxKiPatches);
         for (std::size_t i = 0; i < kiPatchCount; ++i)
         {
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_HOOK_PATCH,
-                                    "HookPatch",
-                                    kiPatches[i].HookName ? kiPatches[i].HookName : "ki",
+            (void)AddIxSelfMapEntry(entries, capacity, count, truncated, IX_SELF_MAP_KIND_HOOK_PATCH,
+                                    "skugga.hook-patch", kiPatches[i].HookName ? kiPatches[i].HookName : "ki",
                                     reinterpret_cast<std::uint64_t>(kiPatches[i].PatchAddress),
                                     static_cast<std::uint64_t>(kiPatches[i].PatchSize),
-                                    kiPatches[i].Flags | IX_SELF_MAP_FLAG_GUARDED,
-                                    0,
-                                    kiPatches[i].Flags);
+                                    kiPatches[i].Flags | IX_SELF_MAP_FLAG_GUARDED, 0, kiPatches[i].Flags);
         }
 
         constexpr std::size_t kMaxModulePatches = 64;
@@ -874,98 +816,49 @@ namespace IX_RUNTIME_INTERNAL
         std::size_t modulePatchCount = IxCollectModuleHookPatchInfos(modulePatches, kMaxModulePatches);
         for (std::size_t i = 0; i < modulePatchCount; ++i)
         {
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_HOOK_PATCH,
-                                    "HookPatch",
+            (void)AddIxSelfMapEntry(entries, capacity, count, truncated, IX_SELF_MAP_KIND_HOOK_PATCH,
+                                    "skugga.hook-patch",
                                     modulePatches[i].HookName ? modulePatches[i].HookName : "module",
                                     reinterpret_cast<std::uint64_t>(modulePatches[i].PatchAddress),
                                     static_cast<std::uint64_t>(modulePatches[i].PatchSize),
-                                    modulePatches[i].Flags | IX_SELF_MAP_FLAG_GUARDED,
-                                    0,
-                                    modulePatches[i].Flags);
+                                    modulePatches[i].Flags | IX_SELF_MAP_FLAG_GUARDED, 0, modulePatches[i].Flags);
         }
     }
 
-    static void CollectIxRuntimeSelfMap(IxSelfMapEntry *entries,
-                                        std::size_t capacity,
-                                        std::uint32_t &count,
+    static void CollectIxRuntimeSelfMap(IxSelfMapEntry *entries, std::size_t capacity, std::uint32_t &count,
                                         std::uint32_t &truncated) noexcept
     {
-        auto addRuntime = [&](const char *name,
-                              const void *address,
-                              std::uint64_t size,
-                              std::uint32_t flags = 0,
-                              std::uint64_t reference0 = 0,
-                              std::uint64_t reference1 = 0) noexcept
+        auto addRuntime = [&](const char *name, const void *address, std::uint64_t size, std::uint32_t flags = 0,
+                              std::uint64_t reference0 = 0, std::uint64_t reference1 = 0) noexcept
         {
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_RUNTIME_STATE,
-                                    "Runtime",
-                                    name,
-                                    reinterpret_cast<std::uint64_t>(address),
-                                    size,
-                                    flags | IX_SELF_MAP_FLAG_OWNED,
-                                    reference0,
-                                    reference1);
+            (void)AddIxSelfMapEntry(entries, capacity, count, truncated, IX_SELF_MAP_KIND_RUNTIME_STATE,
+                                    "skugga.runtime", name, reinterpret_cast<std::uint64_t>(address), size,
+                                    flags | IX_SELF_MAP_FLAG_OWNED, reference0, reference1);
         };
 
         addRuntime("runtime.primed", &g_RuntimePrimed, sizeof(g_RuntimePrimed));
         addRuntime("runtime.initialized", &g_RuntimeInitialized, sizeof(g_RuntimeInitialized));
         addRuntime("runtime.workerStarted", &g_RuntimeWorkerStarted, sizeof(g_RuntimeWorkerStarted));
-        addRuntime("runtime.readyMask",
-                   &g_LastPublishedHookReadyMask,
-                   sizeof(g_LastPublishedHookReadyMask),
-                   0,
-                   g_LastPublishedHookReadyMask.load(std::memory_order_acquire),
-                   IXIPC_HOOK_READY_REQUIRED_MASK);
+        addRuntime("runtime.readyMask", &g_LastPublishedHookReadyMask, sizeof(g_LastPublishedHookReadyMask), 0,
+                   g_LastPublishedHookReadyMask.load(std::memory_order_acquire), SKUGGA_IPC_HOOK_READY_REQUIRED_MASK);
         addRuntime("runtime.vehArgs", &g_RuntimeVehArgs, sizeof(g_RuntimeVehArgs));
-        addRuntime("runtime.winsockController",
-                   &g_WinsockController,
-                   sizeof(g_WinsockController),
+        addRuntime("runtime.winsockController", &g_WinsockController, sizeof(g_WinsockController),
                    g_WinsockInitialized ? IX_SELF_MAP_FLAG_REFERENCE : 0);
-        addRuntime("runtime.ntController",
-                   &g_NtHookController,
-                   sizeof(g_NtHookController),
+        addRuntime("runtime.ntController", &g_NtHookController, sizeof(g_NtHookController),
                    g_NtInitialized ? IX_SELF_MAP_FLAG_REFERENCE : 0);
-        addRuntime("runtime.kiController",
-                   &g_KiHookController,
-                   sizeof(g_KiHookController),
+        addRuntime("runtime.kiController", &g_KiHookController, sizeof(g_KiHookController),
                    g_KiInitialized ? IX_SELF_MAP_FLAG_REFERENCE : 0);
-        addRuntime("runtime.moduleController",
-                   &g_ModuleHookController,
-                   sizeof(g_ModuleHookController),
+        addRuntime("runtime.moduleController", &g_ModuleHookController, sizeof(g_ModuleHookController),
                    g_ModuleInitialized ? IX_SELF_MAP_FLAG_REFERENCE : 0);
-        addRuntime("runtime.indirectHandleTable",
-                   &g_IndirectHandles,
-                   sizeof(g_IndirectHandles),
-                   IX_SELF_MAP_FLAG_GUARDED,
-                   kMaxIndirectHandles,
-                   g_IndirectHandleGeneration);
+        addRuntime("runtime.indirectHandleTable", &g_IndirectHandles, sizeof(g_IndirectHandles),
+                   IX_SELF_MAP_FLAG_GUARDED, kMaxIndirectHandles, g_IndirectHandleGeneration);
         addRuntime("runtime.launchGateCallbacks", &g_LaunchGateCallbacks, sizeof(g_LaunchGateCallbacks));
-        addRuntime("runtime.launchGatePages",
-                   &g_LaunchGatePages,
-                   sizeof(g_LaunchGatePages),
-                   IX_SELF_MAP_FLAG_GUARDED,
-                   g_LaunchGatePageCount,
-                   kLaunchGateMaxPages);
-        addRuntime("runtime.launchGateParkContexts",
-                   &g_LaunchGateParkContexts,
-                   sizeof(g_LaunchGateParkContexts),
-                   IX_SELF_MAP_FLAG_GUARDED,
-                   kLaunchGateMaxParkContexts,
-                   0);
-        addRuntime("runtime.launchGateReadyEvent",
-                   &g_LaunchGateReadyEvent,
-                   sizeof(g_LaunchGateReadyEvent),
-                   0,
-                   reinterpret_cast<std::uint64_t>(g_LaunchGateReadyEvent),
-                   0);
+        addRuntime("runtime.launchGatePages", &g_LaunchGatePages, sizeof(g_LaunchGatePages), IX_SELF_MAP_FLAG_GUARDED,
+                   g_LaunchGatePageCount, kLaunchGateMaxPages);
+        addRuntime("runtime.launchGateParkContexts", &g_LaunchGateParkContexts, sizeof(g_LaunchGateParkContexts),
+                   IX_SELF_MAP_FLAG_GUARDED, kLaunchGateMaxParkContexts, 0);
+        addRuntime("runtime.launchGateReadyEvent", &g_LaunchGateReadyEvent, sizeof(g_LaunchGateReadyEvent), 0,
+                   reinterpret_cast<std::uint64_t>(g_LaunchGateReadyEvent), 0);
 
         for (std::size_t i = 0; i < g_LaunchGatePageCount && i < kLaunchGateMaxPages; ++i)
         {
@@ -976,25 +869,14 @@ namespace IX_RUNTIME_INTERNAL
                 continue;
             }
 
-            char name[IXIPC_MAX_HOOK_API_NAME]{};
-            (void)StringCchPrintfA(name,
-                                   RTL_NUMBER_OF(name),
-                                   "launchGate.page%zu trap=0x%p kind=%lu",
-                                   i,
-                                   page.TrapAddress,
-                                   static_cast<unsigned long>(page.TrapKind));
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_LAUNCH_GATE_PAGE,
-                                    "LaunchGate",
-                                    name,
-                                    reinterpret_cast<std::uint64_t>(resolved.Pointer),
+            char name[SKUGGA_IPC_MAX_HOOK_API_NAME]{};
+            (void)StringCchPrintfA(name, RTL_NUMBER_OF(name), "launchGate.page%zu trap=0x%p kind=%lu", i,
+                                   page.TrapAddress, static_cast<unsigned long>(page.TrapKind));
+            (void)AddIxSelfMapEntry(entries, capacity, count, truncated, IX_SELF_MAP_KIND_LAUNCH_GATE_PAGE,
+                                    "skugga.launch-gate", name, reinterpret_cast<std::uint64_t>(resolved.Pointer),
                                     resolved.Size ? resolved.Size : kLaunchGatePageSize,
                                     resolved.Flags | IX_SELF_MAP_FLAG_GUARDED,
-                                    reinterpret_cast<std::uint64_t>(page.TrapAddress),
-                                    page.TrapIndex);
+                                    reinterpret_cast<std::uint64_t>(page.TrapAddress), page.TrapIndex);
         }
 
         for (std::size_t i = 0; i < kLaunchGateMaxParkContexts; ++i)
@@ -1006,22 +888,11 @@ namespace IX_RUNTIME_INTERNAL
                 continue;
             }
 
-            char name[IXIPC_MAX_HOOK_API_NAME]{};
-            (void)StringCchPrintfA(name,
-                                   RTL_NUMBER_OF(name),
-                                   "launchGate.park%zu tid=%lu state=%ld",
-                                   i,
-                                   static_cast<unsigned long>(park.ThreadId),
-                                   static_cast<long>(state));
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_LAUNCH_GATE_CONTEXT,
-                                    "LaunchGate",
-                                    name,
-                                    reinterpret_cast<std::uint64_t>(&park),
-                                    sizeof(park),
+            char name[SKUGGA_IPC_MAX_HOOK_API_NAME]{};
+            (void)StringCchPrintfA(name, RTL_NUMBER_OF(name), "launchGate.park%zu tid=%lu state=%ld", i,
+                                   static_cast<unsigned long>(park.ThreadId), static_cast<long>(state));
+            (void)AddIxSelfMapEntry(entries, capacity, count, truncated, IX_SELF_MAP_KIND_LAUNCH_GATE_CONTEXT,
+                                    "skugga.launch-gate", name, reinterpret_cast<std::uint64_t>(&park), sizeof(park),
                                     IX_SELF_MAP_FLAG_OWNED | IX_SELF_MAP_FLAG_REFERENCE,
                                     reinterpret_cast<std::uint64_t>(park.TrapAddress),
                                     reinterpret_cast<std::uint64_t>(park.TrapPage));
@@ -1037,18 +908,11 @@ namespace IX_RUNTIME_INTERNAL
                 continue;
             }
 
-            (void)AddIxSelfMapEntry(entries,
-                                    capacity,
-                                    count,
-                                    truncated,
-                                    IX_SELF_MAP_KIND_SYSCALL_STUB,
-                                    "NtStub",
-                                    stubs[i].HookName ? stubs[i].HookName : "ntStub",
-                                    reinterpret_cast<std::uint64_t>(stubs[i].StubBase),
-                                    static_cast<std::uint64_t>(stubs[i].StubSize),
-                                    IX_SELF_MAP_FLAG_EXECUTABLE | IX_SELF_MAP_FLAG_OWNED | IX_SELF_MAP_FLAG_GUARDED,
-                                    i + 1,
-                                    0);
+            (void)AddIxSelfMapEntry(
+                entries, capacity, count, truncated, IX_SELF_MAP_KIND_SYSCALL_STUB, "skugga.syscall-stub",
+                stubs[i].HookName ? stubs[i].HookName : "ntStub", reinterpret_cast<std::uint64_t>(stubs[i].StubBase),
+                static_cast<std::uint64_t>(stubs[i].StubSize),
+                IX_SELF_MAP_FLAG_EXECUTABLE | IX_SELF_MAP_FLAG_OWNED | IX_SELF_MAP_FLAG_GUARDED, i + 1, 0);
         }
     }
 
@@ -1091,27 +955,16 @@ namespace IX_RUNTIME_INTERNAL
             return;
         }
 
-        char summaryName[IXIPC_MAX_HOOK_API_NAME]{};
+        char summaryName[SKUGGA_IPC_MAX_HOOK_API_NAME]{};
         const std::uint32_t initMask = BuildHookReadyMask(true);
-        (void)StringCchPrintfA(summaryName,
-                               RTL_NUMBER_OF(summaryName),
+        (void)StringCchPrintfA(summaryName, RTL_NUMBER_OF(summaryName),
                                "summary entries=%lu truncated=%lu ready=0x%08lX signature=0x%llX",
-                               static_cast<unsigned long>(count),
-                               static_cast<unsigned long>(truncated),
-                               static_cast<unsigned long>(initMask),
-                               static_cast<unsigned long long>(signature));
-        (void)AddIxSelfMapEntry(entries,
-                                RTL_NUMBER_OF(entries),
-                                count,
-                                truncated,
-                                IX_SELF_MAP_KIND_SNAPSHOT_SUMMARY,
-                                "Runtime",
-                                summaryName,
-                                reinterpret_cast<std::uint64_t>(&PublishIxSelfMapSnapshotBestEffort),
-                                count,
-                                (truncated != 0 ? IX_SELF_MAP_FLAG_TRUNCATED : 0u) | IX_SELF_MAP_FLAG_OWNED,
-                                signature,
-                                initMask);
+                               static_cast<unsigned long>(count), static_cast<unsigned long>(truncated),
+                               static_cast<unsigned long>(initMask), static_cast<unsigned long long>(signature));
+        (void)AddIxSelfMapEntry(
+            entries, RTL_NUMBER_OF(entries), count, truncated, IX_SELF_MAP_KIND_SNAPSHOT_SUMMARY, "skugga.runtime",
+            summaryName, reinterpret_cast<std::uint64_t>(&PublishIxSelfMapSnapshotBestEffort), count,
+            (truncated != 0 ? IX_SELF_MAP_FLAG_TRUNCATED : 0u) | IX_SELF_MAP_FLAG_OWNED, signature, initMask);
 
         const std::uint32_t total = count;
         for (std::uint32_t i = 0; i < total; ++i)
@@ -1374,9 +1227,9 @@ namespace IX_RUNTIME_INTERNAL
             std::uint32_t HitCount = 0;
             std::uint32_t SampleSize = 0;
             ULONGLONG LastPublishedTick = 0;
-            char SourceApi[IXIPC_MAX_HOOK_MODULE_NAME]{};
-            char Label[IXIPC_MAX_HOOK_API_NAME]{};
-            std::uint8_t Sample[IXIPC_MAX_HOOK_DATA_SAMPLE]{};
+            char SourceApi[SKUGGA_IPC_MAX_HOOK_MODULE_NAME]{};
+            char Label[SKUGGA_IPC_MAX_HOOK_API_NAME]{};
+            std::uint8_t Sample[SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE]{};
         };
 
         struct GuardRearmEntry
@@ -1661,8 +1514,7 @@ namespace IX_RUNTIME_INTERNAL
             return TestNtZwSlotBit(range.NtZwSlotBits, slot);
         }
 
-        bool GuardPageHasNtZwEatSlot(const GuardedDetectionRange &range,
-                                     std::uintptr_t guardBase,
+        bool GuardPageHasNtZwEatSlot(const GuardedDetectionRange &range, std::uintptr_t guardBase,
                                      SIZE_T guardSize) noexcept
         {
             if (range.ExportBase == nullptr || range.ExportSize == 0 || guardSize == 0)
@@ -1809,7 +1661,7 @@ namespace IX_RUNTIME_INTERNAL
             }
         }
 
-        bool IsAddressInBlindModule(void *address) noexcept
+        bool IsAddressInSkuggaModule(void *address) noexcept
         {
             if (address == nullptr)
             {
@@ -1829,12 +1681,10 @@ namespace IX_RUNTIME_INTERNAL
                 return false;
             }
 
-            return _wcsicmp(WideBaseName(path), L"BLIND.dll") == 0;
+            return _wcsicmp(WideBaseName(path), L"SKUGGA.dll") == 0;
         }
 
-        bool CopyMemorySample(const void *address,
-                              std::uint8_t *sample,
-                              std::uint32_t *sampleSize,
+        bool CopyMemorySample(const void *address, std::uint8_t *sample, std::uint32_t *sampleSize,
                               std::uint32_t maxSample) noexcept
         {
             if (sample == nullptr || sampleSize == nullptr || maxSample == 0)
@@ -1898,8 +1748,8 @@ namespace IX_RUNTIME_INTERNAL
 
             ULONG oldProtect = 0;
             IxInternalScope scope;
-            if (!NativeProtect(
-                    guardBase, guardSize, (current & ~static_cast<ULONG>(PAGE_GUARD)) | PAGE_GUARD, &oldProtect))
+            if (!NativeProtect(guardBase, guardSize, (current & ~static_cast<ULONG>(PAGE_GUARD)) | PAGE_GUARD,
+                               &oldProtect))
             {
                 return false;
             }
@@ -1908,10 +1758,10 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        void CopyEventStackFromVeh(const ix::IX::Event &eventRecord, IXIPC_HOOK_EVENT &record) noexcept
+        void CopyEventStackFromVeh(const ix::IX::Event &eventRecord, SKUGGA_IPC_HOOK_EVENT &record) noexcept
         {
-            record.StackCount = static_cast<UINT32>(eventRecord.stack_frame_count > IXIPC_MAX_HOOK_STACK_FRAMES
-                                                        ? IXIPC_MAX_HOOK_STACK_FRAMES
+            record.StackCount = static_cast<UINT32>(eventRecord.stack_frame_count > SKUGGA_IPC_MAX_HOOK_STACK_FRAMES
+                                                        ? SKUGGA_IPC_MAX_HOOK_STACK_FRAMES
                                                         : eventRecord.stack_frame_count);
             for (UINT32 i = 0; i < record.StackCount; ++i)
             {
@@ -1919,15 +1769,15 @@ namespace IX_RUNTIME_INTERNAL
             }
         }
 
-        void CopyEventStackFromTrace(const IC_STACKTRACE::Trace &trace, IXIPC_HOOK_EVENT &record) noexcept
+        void CopyEventStackFromTrace(const IC_STACKTRACE::Trace &trace, SKUGGA_IPC_HOOK_EVENT &record) noexcept
         {
             CopyHookStack(trace, record);
         }
 
         bool PublishNtdllDoubleLoadEvent(const GuardedDetectionRange &range, const wchar_t *path, void *caller) noexcept
         {
-            IXIPC_HOOK_EVENT record{};
-            record.Kind = IxIpcHookEventIntegrity;
+            SKUGGA_IPC_HOOK_EVENT record{};
+            record.Kind = SkuggaIpcHookEventIntegrity;
             record.ProcessId = GetCurrentProcessId();
             record.ThreadId = GetCurrentThreadId();
             record.Operation = kIntegrityOperationNtdllDoubleLoad;
@@ -1946,14 +1796,8 @@ namespace IX_RUNTIME_INTERNAL
             (void)strncpy_s(record.ModuleName, "ntdll", _TRUNCATE);
             if (path != nullptr && path[0] != L'\0')
             {
-                int bytes = WideCharToMultiByte(CP_UTF8,
-                                                0,
-                                                path,
-                                                -1,
-                                                reinterpret_cast<char *>(record.DataSample),
-                                                RTL_NUMBER_OF(record.DataSample),
-                                                nullptr,
-                                                nullptr);
+                int bytes = WideCharToMultiByte(CP_UTF8, 0, path, -1, reinterpret_cast<char *>(record.DataSample),
+                                                RTL_NUMBER_OF(record.DataSample), nullptr, nullptr);
                 if (bytes > 0)
                 {
                     record.DataSize = static_cast<UINT32>(bytes - 1);
@@ -1963,16 +1807,14 @@ namespace IX_RUNTIME_INTERNAL
             IC_STACKTRACE::Trace trace{};
             (void)IC_STACKTRACE::Capture(trace, 1);
             CopyEventStackFromTrace(trace, record);
-            return IXIPC::PublishHookEvent(record);
+            return SKUGGA_IPC::PublishHookEvent(record);
         }
 
-        bool PublishNtdllEatAccessEvent(const GuardedDetectionRange &range,
-                                        const ix::IX::Event &eventRecord,
-                                        std::uint64_t faultAddress,
-                                        std::uint64_t accessKind) noexcept
+        bool PublishNtdllEatAccessEvent(const GuardedDetectionRange &range, const ix::IX::Event &eventRecord,
+                                        std::uint64_t faultAddress, std::uint64_t accessKind) noexcept
         {
-            IXIPC_HOOK_EVENT record{};
-            record.Kind = IxIpcHookEventIntegrity;
+            SKUGGA_IPC_HOOK_EVENT record{};
+            record.Kind = SkuggaIpcHookEventIntegrity;
             record.ProcessId = eventRecord.pid;
             record.ThreadId = eventRecord.tid;
             record.Operation = kIntegrityOperationNtdllEatAccess;
@@ -2000,41 +1842,29 @@ namespace IX_RUNTIME_INTERNAL
             const char *label = range.Kind == GuardedDetectionKind::DoubleLoadedNtdllEat
                                     ? "double-loaded-ntdll-export-table"
                                     : "original-ntdll-export-table";
-            (void)strncpy_s(
-                reinterpret_cast<char *>(record.DataSample), RTL_NUMBER_OF(record.DataSample), label, _TRUNCATE);
+            (void)strncpy_s(reinterpret_cast<char *>(record.DataSample), RTL_NUMBER_OF(record.DataSample), label,
+                            _TRUNCATE);
             record.DataSize = static_cast<UINT32>(
                 strnlen_s(reinterpret_cast<char *>(record.DataSample), RTL_NUMBER_OF(record.DataSample)));
             CopyEventStackFromVeh(eventRecord, record);
-            return IXIPC::PublishHookEvent(record);
+            return SKUGGA_IPC::PublishHookEvent(record);
         }
 
-        void DumpDirectSyscallPage(const void *pageBase,
-                                   SIZE_T pageSize,
-                                   const void *stubAddress,
-                                   std::uint32_t syscallNumber,
-                                   const char *sourceApi) noexcept
+        void DumpDirectSyscallPage(const void *pageBase, SIZE_T pageSize, const void *stubAddress,
+                                   std::uint32_t syscallNumber, const char *sourceApi) noexcept
         {
             char logDir[MAX_PATH]{};
-            DWORD chars = GetEnvironmentVariableA("BLIND_LOG_DIR", logDir, RTL_NUMBER_OF(logDir));
+            DWORD chars = GetEnvironmentVariableA("SKUGGA_LOG_DIR", logDir, RTL_NUMBER_OF(logDir));
             if (chars == 0 || chars >= RTL_NUMBER_OF(logDir))
             {
                 return;
             }
 
             char path[MAX_PATH]{};
-            (void)StringCchPrintfA(path,
-                                   RTL_NUMBER_OF(path),
-                                   "%s\\direct-syscall-%lu-%p.bin",
-                                   logDir,
-                                   static_cast<unsigned long>(GetCurrentProcessId()),
-                                   pageBase);
-            HANDLE file = CreateFileA(path,
-                                      GENERIC_WRITE,
-                                      FILE_SHARE_READ | FILE_SHARE_DELETE,
-                                      nullptr,
-                                      CREATE_ALWAYS,
-                                      FILE_ATTRIBUTE_NORMAL,
-                                      nullptr);
+            (void)StringCchPrintfA(path, RTL_NUMBER_OF(path), "%s\\direct-syscall-%lu-%p.bin", logDir,
+                                   static_cast<unsigned long>(GetCurrentProcessId()), pageBase);
+            HANDLE file = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, CREATE_ALWAYS,
+                                      FILE_ATTRIBUTE_NORMAL, nullptr);
             if (file == INVALID_HANDLE_VALUE)
             {
                 return;
@@ -2050,23 +1880,17 @@ namespace IX_RUNTIME_INTERNAL
             {
             }
             CloseHandle(file);
-            IxDbgLog("direct-syscall page dump=%s page=%p size=0x%llX stub=%p ssn=0x%08lX source=%s",
-                     path,
-                     pageBase,
-                     static_cast<unsigned long long>(pageSize),
-                     stubAddress,
-                     static_cast<unsigned long>(syscallNumber),
+            IxDbgLog("direct-syscall page dump=%s page=%p size=0x%llX stub=%p ssn=0x%08lX source=%s", path, pageBase,
+                     static_cast<unsigned long long>(pageSize), stubAddress, static_cast<unsigned long>(syscallNumber),
                      sourceApi != nullptr ? sourceApi : "unknown");
         }
 
-        bool PublishDirectSyscallEvent(const GuardedDetectionRange &range,
-                                       bool accessEvent,
-                                       const ix::IX::Event *vehEvent,
-                                       std::uint64_t faultAddress,
+        bool PublishDirectSyscallEvent(const GuardedDetectionRange &range, bool accessEvent,
+                                       const ix::IX::Event *vehEvent, std::uint64_t faultAddress,
                                        std::uint64_t accessKind) noexcept
         {
-            IXIPC_HOOK_EVENT record{};
-            record.Kind = IxIpcHookEventIntegrity;
+            SKUGGA_IPC_HOOK_EVENT record{};
+            record.Kind = SkuggaIpcHookEventIntegrity;
             record.ProcessId = vehEvent != nullptr ? vehEvent->pid : GetCurrentProcessId();
             record.ThreadId = vehEvent != nullptr ? vehEvent->tid : GetCurrentThreadId();
             record.Operation =
@@ -2113,12 +1937,10 @@ namespace IX_RUNTIME_INTERNAL
                 (void)IC_STACKTRACE::Capture(trace, 1);
                 CopyEventStackFromTrace(trace, record);
             }
-            return IXIPC::PublishHookEvent(record);
+            return SKUGGA_IPC::PublishHookEvent(record);
         }
 
-        bool RangesOverlap(std::uintptr_t leftBase,
-                           SIZE_T leftSize,
-                           std::uintptr_t rightBase,
+        bool RangesOverlap(std::uintptr_t leftBase, SIZE_T leftSize, std::uintptr_t rightBase,
                            SIZE_T rightSize) noexcept
         {
             std::uintptr_t leftEnd = leftBase + static_cast<std::uintptr_t>(leftSize);
@@ -2162,8 +1984,7 @@ namespace IX_RUNTIME_INTERNAL
             return nullptr;
         }
 
-        GuardedDetectionRange *FindGuardedRangeByKeyLocked(GuardedDetectionKind kind,
-                                                           void *moduleBase,
+        GuardedDetectionRange *FindGuardedRangeByKeyLocked(GuardedDetectionKind kind, void *moduleBase,
                                                            void *guardBase) noexcept
         {
             for (auto &range : g_GuardedDetectionRanges)
@@ -2304,9 +2125,7 @@ namespace IX_RUNTIME_INTERNAL
             return active;
         }
 
-        bool RegisterGuardedExportRange(HMODULE moduleHandle,
-                                        GuardedDetectionKind kind,
-                                        const wchar_t *modulePath,
+        bool RegisterGuardedExportRange(HMODULE moduleHandle, GuardedDetectionKind kind, const wchar_t *modulePath,
                                         void *caller) noexcept
         {
             GuardedDetectionRange baseRange{};
@@ -2428,11 +2247,8 @@ namespace IX_RUNTIME_INTERNAL
                 if (inserted)
                 {
                     IxDbgLog("guarded ntdll Nt/Zw EAT page kind=%lu module=%p eat=%p slots=%lu guard=%p",
-                             static_cast<unsigned long>(kind),
-                             moduleHandle,
-                             local.ExportBase,
-                             static_cast<unsigned long>(local.NtZwSlotCount),
-                             local.GuardBase);
+                             static_cast<unsigned long>(kind), moduleHandle, local.ExportBase,
+                             static_cast<unsigned long>(local.NtZwSlotCount), local.GuardBase);
                 }
             }
 
@@ -2474,9 +2290,7 @@ namespace IX_RUNTIME_INTERNAL
         (void)RegisterGuardedExportRange(ntdll, GuardedDetectionKind::OriginalNtdllEat, path, nullptr);
     }
 
-    void ObserveLoadedModuleForNtdllEatGuard(HMODULE moduleHandle,
-                                             const void *nameBuffer,
-                                             std::size_t nameLength,
+    void ObserveLoadedModuleForNtdllEatGuard(HMODULE moduleHandle, const void *nameBuffer, std::size_t nameLength,
                                              void *caller) noexcept
     {
         if (moduleHandle == nullptr)
@@ -2507,23 +2321,16 @@ namespace IX_RUNTIME_INTERNAL
             return;
         }
 
-        (void)RegisterGuardedExportRange(moduleHandle,
-                                         GuardedDetectionKind::DoubleLoadedNtdllEat,
-                                         pathChars != 0 && pathChars < RTL_NUMBER_OF(path) ? path : nullptr,
-                                         caller);
+        (void)RegisterGuardedExportRange(moduleHandle, GuardedDetectionKind::DoubleLoadedNtdllEat,
+                                         pathChars != 0 && pathChars < RTL_NUMBER_OF(path) ? path : nullptr, caller);
     }
 
-    bool RegisterDirectSyscallPage(void *pageBase,
-                                   std::uint64_t pageSize64,
-                                   void *stubAddress,
-                                   std::uint32_t syscallNumber,
-                                   void *caller,
-                                   const std::uint8_t *sample,
-                                   std::uint32_t sampleSize,
-                                   const char *sourceApi) noexcept
+    bool RegisterDirectSyscallPage(void *pageBase, std::uint64_t pageSize64, void *stubAddress,
+                                   std::uint32_t syscallNumber, void *caller, const std::uint8_t *sample,
+                                   std::uint32_t sampleSize, const char *sourceApi) noexcept
     {
         if (IxIsInternalCall() || pageBase == nullptr || pageSize64 == 0 || stubAddress == nullptr ||
-            IsAddressInBlindModule(caller))
+            IsAddressInSkuggaModule(caller))
         {
             return false;
         }
@@ -2538,10 +2345,8 @@ namespace IX_RUNTIME_INTERNAL
         SIZE_T pageSize = static_cast<SIZE_T>(std::min<std::uint64_t>(pageSize64, RuntimePageSize()));
         void *guardBase =
             reinterpret_cast<void *>(AlignDown(reinterpret_cast<std::uintptr_t>(pageBase), RuntimePageSize()));
-        if (!RangesOverlap(reinterpret_cast<std::uintptr_t>(guardBase),
-                           pageSize,
-                           reinterpret_cast<std::uintptr_t>(stubAddress),
-                           1))
+        if (!RangesOverlap(reinterpret_cast<std::uintptr_t>(guardBase), pageSize,
+                           reinterpret_cast<std::uintptr_t>(stubAddress), 1))
         {
             return false;
         }
@@ -2568,8 +2373,8 @@ namespace IX_RUNTIME_INTERNAL
         }
         else
         {
-            (void)CopyMemorySample(
-                guardBase, local.Sample, &local.SampleSize, static_cast<std::uint32_t>(RTL_NUMBER_OF(local.Sample)));
+            (void)CopyMemorySample(guardBase, local.Sample, &local.SampleSize,
+                                   static_cast<std::uint32_t>(RTL_NUMBER_OF(local.Sample)));
         }
 
         const bool guardDirectSyscallPage = ShouldGuardDirectSyscallPagesByPolicy();
@@ -2619,8 +2424,8 @@ namespace IX_RUNTIME_INTERNAL
 
         if (inserted)
         {
-            DumpDirectSyscallPage(
-                local.GuardBase, local.GuardSize, local.StubAddress, local.SyscallNumber, local.SourceApi);
+            DumpDirectSyscallPage(local.GuardBase, local.GuardSize, local.StubAddress, local.SyscallNumber,
+                                  local.SourceApi);
             (void)PublishDirectSyscallEvent(published, false, nullptr, 0, 0);
         }
         return true;
@@ -2647,7 +2452,7 @@ namespace IX_RUNTIME_INTERNAL
         }
 
         const bool internalFault =
-            IxIsInternalCall() || IsAddressInBlindModule(reinterpret_cast<void *>(eventRecord.exception_address));
+            IxIsInternalCall() || IsAddressInSkuggaModule(reinterpret_cast<void *>(eventRecord.exception_address));
 
         GuardedDetectionRange local{};
         bool found = false;
@@ -2695,8 +2500,7 @@ namespace IX_RUNTIME_INTERNAL
         if (!local.GuardArmed)
         {
             IxDbgLog("guarded detection fault hit unarmed range kind=%lu guard=%p fault=%p",
-                     static_cast<unsigned long>(local.Kind),
-                     local.GuardBase,
+                     static_cast<unsigned long>(local.Kind), local.GuardBase,
                      reinterpret_cast<void *>(static_cast<ULONG_PTR>(faultAddress)));
             return true;
         }
@@ -2812,10 +2616,8 @@ namespace IX_RUNTIME_INTERNAL
         {
             ULONG oldProtect = 0;
             ULONG baseProtect = rearm.BaseProtect != 0 ? rearm.BaseProtect : mbi.Protect;
-            (void)NativeProtect(rearm.GuardBase,
-                                rearm.GuardSize,
-                                (baseProtect & ~static_cast<ULONG>(PAGE_GUARD)) | PAGE_GUARD,
-                                &oldProtect);
+            (void)NativeProtect(rearm.GuardBase, rearm.GuardSize,
+                                (baseProtect & ~static_cast<ULONG>(PAGE_GUARD)) | PAGE_GUARD, &oldProtect);
         }
         return true;
     }
@@ -2843,10 +2645,8 @@ namespace IX_RUNTIME_INTERNAL
             {
                 ULONG oldProtect = 0;
                 ULONG baseProtect = range.BaseProtect != 0 ? range.BaseProtect : mbi.Protect;
-                if (NativeProtect(range.GuardBase,
-                                  range.GuardSize,
-                                  (baseProtect & ~static_cast<ULONG>(PAGE_GUARD)) | PAGE_GUARD,
-                                  &oldProtect))
+                if (NativeProtect(range.GuardBase, range.GuardSize,
+                                  (baseProtect & ~static_cast<ULONG>(PAGE_GUARD)) | PAGE_GUARD, &oldProtect))
                 {
                     range.BaseProtect = oldProtect & ~static_cast<ULONG>(PAGE_GUARD);
                 }
@@ -2923,19 +2723,14 @@ namespace IX_RUNTIME_INTERNAL
         {
             DWORD err = GetLastError();
             IxDbgLog("NativeCreateEvent: failed name=%ls manual=%u initial=%u access=0x%08lX gle=%lu",
-                     name != nullptr ? name : L"<unnamed>",
-                     manualReset ? 1u : 0u,
-                     initialState ? 1u : 0u,
-                     static_cast<unsigned long>(desiredAccess),
-                     static_cast<unsigned long>(err));
+                     name != nullptr ? name : L"<unnamed>", manualReset ? 1u : 0u, initialState ? 1u : 0u,
+                     static_cast<unsigned long>(desiredAccess), static_cast<unsigned long>(err));
             SetLastError(err);
         }
         else
         {
             IxDbgLog("NativeCreateEvent: success name=%ls handle=%p access=0x%08lX gle=%lu",
-                     name != nullptr ? name : L"<unnamed>",
-                     eventHandle,
-                     static_cast<unsigned long>(desiredAccess),
+                     name != nullptr ? name : L"<unnamed>", eventHandle, static_cast<unsigned long>(desiredAccess),
                      static_cast<unsigned long>(GetLastError()));
         }
         return eventHandle;
@@ -2985,33 +2780,16 @@ namespace IX_RUNTIME_INTERNAL
             }
 
             KH_CLIENT_ID clientId{};
-            if (!NtSucceeded(rtlCreateUserThread(CurrentProcessHandle(),
-                                                 nullptr,
-                                                 FALSE,
-                                                 0,
-                                                 nullptr,
-                                                 nullptr,
-                                                 startRoutine,
-                                                 parameter,
-                                                 &threadHandle,
-                                                 &clientId)))
+            if (!NtSucceeded(rtlCreateUserThread(CurrentProcessHandle(), nullptr, FALSE, 0, nullptr, nullptr,
+                                                 startRoutine, parameter, &threadHandle, &clientId)))
             {
                 return nullptr;
             }
             return threadHandle;
         }
 
-        if (!NtSucceeded(fn(&threadHandle,
-                            THREAD_ALL_ACCESS,
-                            nullptr,
-                            CurrentProcessHandle(),
-                            startRoutine,
-                            parameter,
-                            0,
-                            0,
-                            0,
-                            0,
-                            nullptr)))
+        if (!NtSucceeded(fn(&threadHandle, THREAD_ALL_ACCESS, nullptr, CurrentProcessHandle(), startRoutine, parameter,
+                            0, 0, 0, 0, nullptr)))
         {
             threadHandle =
                 CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(startRoutine), parameter, 0, nullptr);
@@ -3216,8 +2994,8 @@ namespace
         }
 
         void *expected = nullptr;
-        if (!g_GuardedDetectionVehHandle.compare_exchange_strong(
-                expected, created, std::memory_order_acq_rel, std::memory_order_acquire))
+        if (!g_GuardedDetectionVehHandle.compare_exchange_strong(expected, created, std::memory_order_acq_rel,
+                                                                 std::memory_order_acquire))
         {
             RemoveVectoredExceptionHandler(created);
             return true;
@@ -3259,13 +3037,12 @@ namespace
             hostPath[RTL_NUMBER_OF(hostPath) - 1] = L'\0';
         }
 
-        IC_STACKTRACE::SetAnalysisSubjectMetadata(
-            subjectKind, subjectKind == 1 ? subjectPath : nullptr, subjectKind == 1 ? hostPath : nullptr);
+        IC_STACKTRACE::SetAnalysisSubjectMetadata(subjectKind, subjectKind == 1 ? subjectPath : nullptr,
+                                                  subjectKind == 1 ? hostPath : nullptr);
         if (subjectKind == 1)
         {
             IxDbgLog("InitializeAnalysisSubjectClassifier: kind=DLL subject=%ls host=%ls",
-                     subjectPath[0] != L'\0' ? subjectPath : L"<unset>",
-                     hostPath[0] != L'\0' ? hostPath : L"<unset>");
+                     subjectPath[0] != L'\0' ? subjectPath : L"<unset>", hostPath[0] != L'\0' ? hostPath : L"<unset>");
         }
     }
 
@@ -3276,8 +3053,7 @@ namespace
         (void)SetErrorMode(mode);
     }
 
-    static void FormatVehStackSummary(const ix::IX::Event &e,
-                                      char *stackSummary,
+    static void FormatVehStackSummary(const ix::IX::Event &e, char *stackSummary,
                                       std::size_t stackSummaryChars) noexcept
     {
         if (stackSummary == nullptr || stackSummaryChars == 0)
@@ -3300,13 +3076,8 @@ namespace
                 break;
             }
 
-            HRESULT hr = StringCchPrintfExA(stackSummary + offset,
-                                            stackSummaryChars - offset,
-                                            nullptr,
-                                            nullptr,
-                                            STRSAFE_IGNORE_NULLS,
-                                            "%p",
-                                            e.stack[i]);
+            HRESULT hr = StringCchPrintfExA(stackSummary + offset, stackSummaryChars - offset, nullptr, nullptr,
+                                            STRSAFE_IGNORE_NULLS, "%p", e.stack[i]);
             if (FAILED(hr))
             {
                 break;
@@ -3324,48 +3095,30 @@ namespace
 
         char line[1024]{};
         (void)StringCchPrintfA(
-            line,
-            RTL_NUMBER_OF(line),
+            line, RTL_NUMBER_OF(line),
             "[VEH] crash-exception channel=%s code=0x%08lX flags=0x%08lX fault=%p pid=%lu tid=%lu "
             "module=%s info0=0x%llX info1=0x%llX rip=0x%llX rsp=0x%llX rbp=0x%llX rax=0x%llX rcx=0x%llX "
             "rdx=0x%llX r10=0x%llX eflags=0x%llX frames=%hu stack=%s\n",
-            channel ? channel : "unknown",
-            static_cast<unsigned long>(e.exception_code),
-            static_cast<unsigned long>(e.exception_flags),
-            e.exception_address,
-            static_cast<unsigned long>(e.pid),
-            static_cast<unsigned long>(e.tid),
-            (moduleName && moduleName[0] != '\0') ? moduleName : "unknown",
+            channel ? channel : "unknown", static_cast<unsigned long>(e.exception_code),
+            static_cast<unsigned long>(e.exception_flags), e.exception_address, static_cast<unsigned long>(e.pid),
+            static_cast<unsigned long>(e.tid), (moduleName && moduleName[0] != '\0') ? moduleName : "unknown",
             static_cast<unsigned long long>(e.exception_info_count > 0 ? e.exception_info[0] : 0),
             static_cast<unsigned long long>(e.exception_info_count > 1 ? e.exception_info[1] : 0),
 #if defined(_M_X64)
-            static_cast<unsigned long long>(e.rip),
-            static_cast<unsigned long long>(e.rsp),
-            static_cast<unsigned long long>(e.rbp),
-            static_cast<unsigned long long>(e.rax),
-            static_cast<unsigned long long>(e.rcx),
-            static_cast<unsigned long long>(e.rdx),
-            static_cast<unsigned long long>(e.r10),
-            static_cast<unsigned long long>(e.eflags),
+            static_cast<unsigned long long>(e.rip), static_cast<unsigned long long>(e.rsp),
+            static_cast<unsigned long long>(e.rbp), static_cast<unsigned long long>(e.rax),
+            static_cast<unsigned long long>(e.rcx), static_cast<unsigned long long>(e.rdx),
+            static_cast<unsigned long long>(e.r10), static_cast<unsigned long long>(e.eflags),
 #else
-            0ull,
-            0ull,
-            0ull,
-            0ull,
-            0ull,
-            0ull,
-            0ull,
-            0ull,
+            0ull, 0ull, 0ull, 0ull, 0ull, 0ull, 0ull, 0ull,
 #endif
-            e.stack_frame_count,
-            stackSummary[0] != '\0' ? stackSummary : "none");
+            e.stack_frame_count, stackSummary[0] != '\0' ? stackSummary : "none");
 
         IxInternalScope scope;
         OutputDebugStringA(line);
     }
 
-    static void PublishVehExceptionEventInternal(const char *channel,
-                                                 const ix::IX::Event &e,
+    static void PublishVehExceptionEventInternal(const char *channel, const ix::IX::Event &e,
                                                  const char *moduleName) noexcept
     {
         if (e.exception_code == STATUS_GUARD_PAGE_VIOLATION || IsDebugPrintExceptionCode(e.exception_code))
@@ -3373,8 +3126,8 @@ namespace
             return;
         }
 
-        IXIPC_HOOK_EVENT record{};
-        record.Kind = e.is_target_module ? IxIpcHookEventExceptionLowNoise : IxIpcHookEventExceptionHighPriv;
+        SKUGGA_IPC_HOOK_EVENT record{};
+        record.Kind = e.is_target_module ? SkuggaIpcHookEventExceptionLowNoise : SkuggaIpcHookEventExceptionHighPriv;
         record.ProcessId = e.pid;
         record.ThreadId = e.tid;
         record.Operation = e.exception_code;
@@ -3394,8 +3147,9 @@ namespace
         record.Args[6] = e.r10;
         record.Args[7] = e.eflags;
 #endif
-        record.StackCount = static_cast<UINT32>(
-            (e.stack_frame_count > IXIPC_MAX_HOOK_STACK_FRAMES) ? IXIPC_MAX_HOOK_STACK_FRAMES : e.stack_frame_count);
+        record.StackCount = static_cast<UINT32>((e.stack_frame_count > SKUGGA_IPC_MAX_HOOK_STACK_FRAMES)
+                                                    ? SKUGGA_IPC_MAX_HOOK_STACK_FRAMES
+                                                    : e.stack_frame_count);
         for (UINT32 i = 0; i < record.StackCount; ++i)
         {
             record.Stack[i] = reinterpret_cast<UINT64>(e.stack[i]);
@@ -3403,17 +3157,15 @@ namespace
         record.CallerFlags =
             ((IX_HOOK_COMPONENT_UNKNOWN << IX_HOOK_CALLER_COMPONENT_SHIFT) & IX_HOOK_CALLER_COMPONENT_MASK) |
             ((IX_HOOK_CALLER_KIND_UNKNOWN << IX_HOOK_CALLER_IMMED_SHIFT) & IX_HOOK_CALLER_IMMED_MASK);
-        (void)StringCchCopyA(record.ApiName,
-                             RTL_NUMBER_OF(record.ApiName),
+        (void)StringCchCopyA(record.ApiName, RTL_NUMBER_OF(record.ApiName),
                              e.is_memory_fault           ? "UsermodeMemoryFault"
                              : IsTrapFlagOrSingleStep(e) ? "UsermodeSingleStep"
                                                          : "UsermodeException");
-        (void)StringCchCopyA(record.ModuleName,
-                             RTL_NUMBER_OF(record.ModuleName),
+        (void)StringCchCopyA(record.ModuleName, RTL_NUMBER_OF(record.ModuleName),
                              (moduleName && moduleName[0] != '\0') ? moduleName : "unknown");
 
         EmitVehCrashDebugLine(channel, e, moduleName);
-        (void)IXIPC::PublishHookEventSynchronously(record);
+        (void)SKUGGA_IPC::PublishHookEventSynchronously(record);
     }
 
     static void PublishVehExceptionEvent(const char *channel, const ix::IX::Event &e, const char *moduleName) noexcept
@@ -3442,8 +3194,8 @@ namespace
         char moduleName[96]{};
         if (e.module_basename_lower[0] != L'\0')
         {
-            (void)WideCharToMultiByte(
-                CP_UTF8, 0, e.module_basename_lower, -1, moduleName, RTL_NUMBER_OF(moduleName), nullptr, nullptr);
+            (void)WideCharToMultiByte(CP_UTF8, 0, e.module_basename_lower, -1, moduleName, RTL_NUMBER_OF(moduleName),
+                                      nullptr, nullptr);
         }
         else
         {
@@ -3456,17 +3208,10 @@ namespace
         IxDbgLog(
             "[VEH] veh-exception channel=%s code=0x%08lX flags=0x%08lX addr=%p pid=%lu tid=%lu target=%u memory=%u "
             "noncontinuable=%u module=%s infoCount=%lu info0=0x%llX info1=0x%llX stack=%s",
-            channel ? channel : "unknown",
-            static_cast<unsigned long>(e.exception_code),
-            static_cast<unsigned long>(e.exception_flags),
-            e.exception_address,
-            static_cast<unsigned long>(e.pid),
-            static_cast<unsigned long>(e.tid),
-            e.is_target_module ? 1u : 0u,
-            e.is_memory_fault ? 1u : 0u,
-            e.is_noncontinuable ? 1u : 0u,
-            moduleName,
-            static_cast<unsigned long>(e.exception_info_count),
+            channel ? channel : "unknown", static_cast<unsigned long>(e.exception_code),
+            static_cast<unsigned long>(e.exception_flags), e.exception_address, static_cast<unsigned long>(e.pid),
+            static_cast<unsigned long>(e.tid), e.is_target_module ? 1u : 0u, e.is_memory_fault ? 1u : 0u,
+            e.is_noncontinuable ? 1u : 0u, moduleName, static_cast<unsigned long>(e.exception_info_count),
             static_cast<unsigned long long>(e.exception_info_count > 0 ? e.exception_info[0] : 0),
             static_cast<unsigned long long>(e.exception_info_count > 1 ? e.exception_info[1] : 0),
             stackSummary[0] != '\0' ? stackSummary : "none");
@@ -3475,24 +3220,15 @@ namespace
             "[VEH] context rip=0x%llX rsp=0x%llX rbp=0x%llX rax=0x%llX rbx=0x%llX rcx=0x%llX rdx=0x%llX rsi=0x%llX "
             "rdi=0x%llX r8=0x%llX r9=0x%llX r10=0x%llX r11=0x%llX r12=0x%llX r13=0x%llX r14=0x%llX r15=0x%llX "
             "eflags=0x%llX",
-            static_cast<unsigned long long>(e.rip),
-            static_cast<unsigned long long>(e.rsp),
-            static_cast<unsigned long long>(e.rbp),
-            static_cast<unsigned long long>(e.rax),
-            static_cast<unsigned long long>(e.rbx),
-            static_cast<unsigned long long>(e.rcx),
-            static_cast<unsigned long long>(e.rdx),
-            static_cast<unsigned long long>(e.rsi),
-            static_cast<unsigned long long>(e.rdi),
-            static_cast<unsigned long long>(e.r8),
-            static_cast<unsigned long long>(e.r9),
-            static_cast<unsigned long long>(e.r10),
-            static_cast<unsigned long long>(e.r11),
-            static_cast<unsigned long long>(e.r12),
-            static_cast<unsigned long long>(e.r13),
-            static_cast<unsigned long long>(e.r14),
-            static_cast<unsigned long long>(e.r15),
-            static_cast<unsigned long long>(e.eflags));
+            static_cast<unsigned long long>(e.rip), static_cast<unsigned long long>(e.rsp),
+            static_cast<unsigned long long>(e.rbp), static_cast<unsigned long long>(e.rax),
+            static_cast<unsigned long long>(e.rbx), static_cast<unsigned long long>(e.rcx),
+            static_cast<unsigned long long>(e.rdx), static_cast<unsigned long long>(e.rsi),
+            static_cast<unsigned long long>(e.rdi), static_cast<unsigned long long>(e.r8),
+            static_cast<unsigned long long>(e.r9), static_cast<unsigned long long>(e.r10),
+            static_cast<unsigned long long>(e.r11), static_cast<unsigned long long>(e.r12),
+            static_cast<unsigned long long>(e.r13), static_cast<unsigned long long>(e.r14),
+            static_cast<unsigned long long>(e.r15), static_cast<unsigned long long>(e.eflags));
 #endif
 
         if (e.is_noncontinuable || IsTrapFlagOrSingleStep(e))
@@ -3547,8 +3283,8 @@ namespace
             char moduleName[96]{};
             if (e.module_basename_lower[0] != L'\0')
             {
-                (void)WideCharToMultiByte(
-                    CP_UTF8, 0, e.module_basename_lower, -1, moduleName, RTL_NUMBER_OF(moduleName), nullptr, nullptr);
+                (void)WideCharToMultiByte(CP_UTF8, 0, e.module_basename_lower, -1, moduleName,
+                                          RTL_NUMBER_OF(moduleName), nullptr, nullptr);
             }
             else
             {
@@ -3562,8 +3298,8 @@ namespace
 
     static bool IxRuntimePrimeVectoredExceptionHandler() noexcept
     {
-        auto blindName = DecodeIxDllName();
-        g_RuntimeVehArgs.target_module_basename = blindName.c_str();
+        auto skuggaName = DecodeIxDllName();
+        g_RuntimeVehArgs.target_module_basename = skuggaName.c_str();
         g_RuntimeVehArgs.low_noise_telemetry = LowNoise;
         g_RuntimeVehArgs.high_noise_telemetry = HighNoise;
         g_RuntimeVehArgs.memory_fault_handler = MemFault;
@@ -3694,7 +3430,7 @@ void IxRuntimeShutdown()
 
     IC_STACKTRACE::CleanupSymbols();
 
-    IXIPC::Shutdown();
+    SKUGGA_IPC::Shutdown();
     IxRuntimeUnregisterGuardedDetectionVeh();
     IxUnregisterVectoredExceptionHandler();
     ResetControlFlowGuardPolicyCache();

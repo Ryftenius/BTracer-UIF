@@ -22,8 +22,8 @@
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{35d7f3f0-1d4d-4355-8a2f-35188412fe7c}</ProjectGuid>
-    <ProjectName>BlindRunner</ProjectName>
-    <RootNamespace>BlindRunner</RootNamespace>
+    <ProjectName>SkuggaRunner</ProjectName>
+    <RootNamespace>SkuggaRunner</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -43,6 +43,9 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
+    <SkuggaVersion Condition="'$(SkuggaVersion)'==''">1.0.1</SkuggaVersion>
+  </PropertyGroup>
+  <PropertyGroup>
     <OutDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(MSBuildThisFileDirectory)..\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
@@ -56,7 +59,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ExceptionHandling>Sync</ExceptionHandling>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..;$(MSBuildThisFileDirectory)..\Injector;$(MSBuildThisFileDirectory)..\ABI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(IntDir);$(MSBuildThisFileDirectory)..;$(MSBuildThisFileDirectory)..\Injector;$(MSBuildThisFileDirectory)..\ABI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -93,7 +96,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Injector\App\BlindRunner.cpp" />
+    <ClCompile Include="..\Injector\App\SkuggaRunner.cpp" />
     <ClCompile Include="..\Injector\Telemetry\cli_event_filter.cpp" />
     <ClCompile Include="..\Injector\Telemetry\cli_events.cpp" />
     <ClCompile Include="..\Injector\Telemetry\cli_policy.cpp" />
@@ -125,7 +128,7 @@
     <ClCompile Include="..\Mapper\imports.cpp" />
     <ClCompile Include="..\Mapper\protections.cpp" />
     <ClCompile Include="..\Mapper\relocations.cpp" />
-    <ClInclude Include="..\ABI\blind_ipc.h" />
+    <ClInclude Include="..\ABI\skugga_ipc.h" />
     <ClInclude Include="..\DLL\support\win32_util.h" />
     <ClInclude Include="..\Injector\Telemetry\behavior_model.h" />
     <ClInclude Include="..\Injector\Telemetry\cli_events.h" />
@@ -150,4 +153,7 @@
     <ClInclude Include="..\Mapper\internal.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="GenerateSkuggaBuildIdentity" BeforeTargets="ClCompile">
+    <Exec Command="pwsh.exe -NoProfile -File &quot;$(MSBuildThisFileDirectory)..\Scripts\generate_build_identity.ps1&quot; -OutputPath &quot;$(IntDir)skugga_build_identity.h&quot; -Version &quot;$(SkuggaVersion)&quot; -Platform &quot;$(Platform)&quot;" />
+  </Target>
 </Project>

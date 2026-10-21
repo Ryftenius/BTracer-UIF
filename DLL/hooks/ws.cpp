@@ -1,6 +1,6 @@
 #include "ws.h"
 #include "runtime/runtime_internal.h"
-#include "../../ABI/blind_ipc.h"
+#include "../../ABI/skugga_ipc.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -20,11 +20,11 @@
 
 namespace
 {
-    using WsasendFn =
-        INT(WSAAPI *)(SOCKET, LPWSABUF, DWORD, LPDWORD, DWORD, LPWSAOVERLAPPED, LPWSAOVERLAPPED_COMPLETION_ROUTINE);
+    using WsasendFn = INT(WSAAPI *)(SOCKET, LPWSABUF, DWORD, LPDWORD, DWORD, LPWSAOVERLAPPED,
+                                    LPWSAOVERLAPPED_COMPLETION_ROUTINE);
 
-    using WsarecvFn =
-        INT(WSAAPI *)(SOCKET, LPWSABUF, DWORD, LPDWORD, LPDWORD, LPWSAOVERLAPPED, LPWSAOVERLAPPED_COMPLETION_ROUTINE);
+    using WsarecvFn = INT(WSAAPI *)(SOCKET, LPWSABUF, DWORD, LPDWORD, LPDWORD, LPWSAOVERLAPPED,
+                                    LPWSAOVERLAPPED_COMPLETION_ROUTINE);
 
     using SendFn = int(WSAAPI *)(SOCKET, const char *, int, int);
 
@@ -326,12 +326,8 @@ namespace
         }
     }
 
-    static void TrackInlinePatch(void *target,
-                                 std::size_t patchSize,
-                                 const std::uint8_t *originalBytes,
-                                 void *trampoline,
-                                 void *hookFunction,
-                                 void **originalFunction,
+    static void TrackInlinePatch(void *target, std::size_t patchSize, const std::uint8_t *originalBytes,
+                                 void *trampoline, void *hookFunction, void **originalFunction,
                                  const char *functionName) noexcept
     {
         if (target == nullptr || patchSize == 0 || patchSize > 16 || originalBytes == nullptr ||
@@ -622,13 +618,8 @@ namespace
         }
     }
 
-    INT WSAAPI WsasendHook(SOCKET socketHandle,
-                           LPWSABUF buffers,
-                           DWORD bufferCount,
-                           LPDWORD bytesSent,
-                           DWORD flags,
-                           LPWSAOVERLAPPED overlapped,
-                           LPWSAOVERLAPPED_COMPLETION_ROUTINE completionRoutine)
+    INT WSAAPI WsasendHook(SOCKET socketHandle, LPWSABUF buffers, DWORD bufferCount, LPDWORD bytesSent, DWORD flags,
+                           LPWSAOVERLAPPED overlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE completionRoutine)
     {
         if (!g_InHook && g_ActiveCallback != nullptr && buffers != nullptr && bufferCount > 0)
         {
@@ -665,23 +656,12 @@ namespace
             return SOCKET_ERROR;
         }
 
-        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalWsasend),
-                                   g_OriginalWsasend,
-                                   socketHandle,
-                                   buffers,
-                                   bufferCount,
-                                   bytesSent,
-                                   flags,
-                                   overlapped,
-                                   completionRoutine);
+        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalWsasend), g_OriginalWsasend, socketHandle,
+                                   buffers, bufferCount, bytesSent, flags, overlapped, completionRoutine);
     }
 
-    INT WSAAPI WsarecvHook(SOCKET socketHandle,
-                           LPWSABUF buffers,
-                           DWORD bufferCount,
-                           LPDWORD bytesReceived,
-                           LPDWORD flags,
-                           LPWSAOVERLAPPED overlapped,
+    INT WSAAPI WsarecvHook(SOCKET socketHandle, LPWSABUF buffers, DWORD bufferCount, LPDWORD bytesReceived,
+                           LPDWORD flags, LPWSAOVERLAPPED overlapped,
                            LPWSAOVERLAPPED_COMPLETION_ROUTINE completionRoutine)
     {
         if (g_OriginalWsarecv == nullptr)
@@ -689,15 +669,9 @@ namespace
             return SOCKET_ERROR;
         }
 
-        const INT result = CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalWsarecv),
-                                               g_OriginalWsarecv,
-                                               socketHandle,
-                                               buffers,
-                                               bufferCount,
-                                               bytesReceived,
-                                               flags,
-                                               overlapped,
-                                               completionRoutine);
+        const INT result =
+            CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalWsarecv), g_OriginalWsarecv, socketHandle, buffers,
+                                bufferCount, bytesReceived, flags, overlapped, completionRoutine);
 
         if (result != 0)
         {
@@ -772,8 +746,8 @@ namespace
         {
             return SOCKET_ERROR;
         }
-        return CallOriginalWinsock(
-            reinterpret_cast<void **>(&g_OriginalSend), g_OriginalSend, socketHandle, buffer, length, flags);
+        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalSend), g_OriginalSend, socketHandle, buffer,
+                                   length, flags);
     }
 
     int WSAAPI RecvHook(SOCKET socketHandle, char *buffer, int length, int flags)
@@ -783,8 +757,8 @@ namespace
             return SOCKET_ERROR;
         }
 
-        const int result = CallOriginalWinsock(
-            reinterpret_cast<void **>(&g_OriginalRecv), g_OriginalRecv, socketHandle, buffer, length, flags);
+        const int result = CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalRecv), g_OriginalRecv, socketHandle,
+                                               buffer, length, flags);
 
         if (result > 0 && !g_InHook && g_ActiveCallback != nullptr && buffer != nullptr)
         {
@@ -841,17 +815,12 @@ namespace
             return SOCKET_ERROR;
         }
 
-        return CallOriginalWinsock(
-            reinterpret_cast<void **>(&g_OriginalConnect), g_OriginalConnect, socketHandle, name, nameLength);
+        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalConnect), g_OriginalConnect, socketHandle, name,
+                                   nameLength);
     }
 
-    int WSAAPI WsaConnectHook(SOCKET socketHandle,
-                              const sockaddr *name,
-                              int nameLength,
-                              LPWSABUF callerData,
-                              LPWSABUF calleeData,
-                              LPQOS sqos,
-                              LPQOS gqos)
+    int WSAAPI WsaConnectHook(SOCKET socketHandle, const sockaddr *name, int nameLength, LPWSABUF callerData,
+                              LPWSABUF calleeData, LPQOS sqos, LPQOS gqos)
     {
         if (!g_InHook && g_ActiveCallback != nullptr && name != nullptr && nameLength > 0)
         {
@@ -882,35 +851,24 @@ namespace
             return SOCKET_ERROR;
         }
 
-        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalWsaConnect),
-                                   g_OriginalWsaConnect,
-                                   socketHandle,
-                                   name,
-                                   nameLength,
-                                   callerData,
-                                   calleeData,
-                                   sqos,
-                                   gqos);
+        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalWsaConnect), g_OriginalWsaConnect, socketHandle,
+                                   name, nameLength, callerData, calleeData, sqos, gqos);
     }
 
     INT WSAAPI GetAddrInfoWHook(PCWSTR nodeName, PCWSTR serviceName, const ADDRINFOW *hints, PADDRINFOW *result)
     {
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
         if (g_InHook)
         {
             return g_OriginalGetAddrInfoW != nullptr
-                       ? CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalGetAddrInfoW),
-                                             g_OriginalGetAddrInfoW,
-                                             nodeName,
-                                             serviceName,
-                                             hints,
-                                             result)
+                       ? CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalGetAddrInfoW), g_OriginalGetAddrInfoW,
+                                             nodeName, serviceName, hints, result)
                        : EAI_FAIL;
         }
         g_InHook = true;
 #endif
         if (
-#if !defined(BLIND_STANDALONE)
+#if !defined(SKUGGA_STANDALONE)
             !g_InHook &&
 #endif
             g_ActiveCallback != nullptr && nodeName != nullptr && nodeName[0] != L'\0')
@@ -918,7 +876,7 @@ namespace
             g_InHook = true;
 
             std::size_t chars = 0;
-            while (nodeName[chars] != L'\0' && chars + 1 < (IXIPC_MAX_HOOK_DATA_SAMPLE / sizeof(wchar_t)))
+            while (nodeName[chars] != L'\0' && chars + 1 < (SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE / sizeof(wchar_t)))
             {
                 ++chars;
             }
@@ -940,7 +898,7 @@ namespace
 
             g_ActiveCallback(context);
 
-#if !defined(BLIND_STANDALONE)
+#if !defined(SKUGGA_STANDALONE)
             g_InHook = false;
 #endif
         }
@@ -952,14 +910,10 @@ namespace
         }
         else
         {
-            status = CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalGetAddrInfoW),
-                                         g_OriginalGetAddrInfoW,
-                                         nodeName,
-                                         serviceName,
-                                         hints,
-                                         result);
+            status = CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalGetAddrInfoW), g_OriginalGetAddrInfoW,
+                                         nodeName, serviceName, hints, result);
         }
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
         g_InHook = false;
 #endif
         return status;
@@ -967,22 +921,18 @@ namespace
 
     INT WSAAPI GetAddrInfoAHook(PCSTR nodeName, PCSTR serviceName, const ADDRINFOA *hints, PADDRINFOA *result)
     {
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
         if (g_InHook)
         {
             return g_OriginalGetAddrInfoA != nullptr
-                       ? CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalGetAddrInfoA),
-                                             g_OriginalGetAddrInfoA,
-                                             nodeName,
-                                             serviceName,
-                                             hints,
-                                             result)
+                       ? CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalGetAddrInfoA), g_OriginalGetAddrInfoA,
+                                             nodeName, serviceName, hints, result)
                        : EAI_FAIL;
         }
         g_InHook = true;
 #endif
         if (
-#if !defined(BLIND_STANDALONE)
+#if !defined(SKUGGA_STANDALONE)
             !g_InHook &&
 #endif
             g_ActiveCallback != nullptr && nodeName != nullptr && nodeName[0] != '\0')
@@ -991,7 +941,7 @@ namespace
 
             WinsockHookBuffer bufferView{};
             bufferView.Data = nodeName;
-            bufferView.Length = strnlen_s(nodeName, IXIPC_MAX_HOOK_DATA_SAMPLE - 1);
+            bufferView.Length = strnlen_s(nodeName, SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE - 1);
 
             WinsockHookContext context{};
             context.Operation = WinsockOperation::GetAddrInfoA;
@@ -1006,7 +956,7 @@ namespace
 
             g_ActiveCallback(context);
 
-#if !defined(BLIND_STANDALONE)
+#if !defined(SKUGGA_STANDALONE)
             g_InHook = false;
 #endif
         }
@@ -1018,14 +968,10 @@ namespace
         }
         else
         {
-            status = CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalGetAddrInfoA),
-                                         g_OriginalGetAddrInfoA,
-                                         nodeName,
-                                         serviceName,
-                                         hints,
-                                         result);
+            status = CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalGetAddrInfoA), g_OriginalGetAddrInfoA,
+                                         nodeName, serviceName, hints, result);
         }
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
         g_InHook = false;
 #endif
         return status;
@@ -1038,7 +984,7 @@ namespace
             g_InHook = true;
 
             std::size_t chars = 0;
-            while (name[chars] != L'\0' && chars + 1 < (IXIPC_MAX_HOOK_DATA_SAMPLE / sizeof(wchar_t)))
+            while (name[chars] != L'\0' && chars + 1 < (SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE / sizeof(wchar_t)))
             {
                 ++chars;
             }
@@ -1066,14 +1012,8 @@ namespace
             return 9002L;
         }
 
-        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalDnsQueryW),
-                                   g_OriginalDnsQueryW,
-                                   name,
-                                   type,
-                                   options,
-                                   extra,
-                                   results,
-                                   reserved);
+        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalDnsQueryW), g_OriginalDnsQueryW, name, type,
+                                   options, extra, results, reserved);
     }
 
     LONG WINAPI DnsQueryAHook(PCSTR name, WORD type, DWORD options, PVOID extra, PVOID *results, PVOID *reserved)
@@ -1084,7 +1024,7 @@ namespace
 
             WinsockHookBuffer bufferView{};
             bufferView.Data = name;
-            bufferView.Length = strnlen_s(name, IXIPC_MAX_HOOK_DATA_SAMPLE - 1);
+            bufferView.Length = strnlen_s(name, SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE - 1);
 
             WinsockHookContext context{};
             context.Operation = WinsockOperation::DnsQueryA;
@@ -1105,50 +1045,28 @@ namespace
             return 9002L;
         }
 
-        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalDnsQueryA),
-                                   g_OriginalDnsQueryA,
-                                   name,
-                                   type,
-                                   options,
-                                   extra,
-                                   results,
-                                   reserved);
+        return CallOriginalWinsock(reinterpret_cast<void **>(&g_OriginalDnsQueryA), g_OriginalDnsQueryA, name, type,
+                                   options, extra, results, reserved);
     }
 
     static HookEntry g_HookEntries[] = {
-        {"WS2_32.dll",
-         "WSASend",
-         reinterpret_cast<void **>(&g_OriginalWsasend),
+        {"WS2_32.dll", "WSASend", reinterpret_cast<void **>(&g_OriginalWsasend),
          reinterpret_cast<void *>(&WsasendHook)},
-        {"WS2_32.dll",
-         "WSARecv",
-         reinterpret_cast<void **>(&g_OriginalWsarecv),
+        {"WS2_32.dll", "WSARecv", reinterpret_cast<void **>(&g_OriginalWsarecv),
          reinterpret_cast<void *>(&WsarecvHook)},
         {"WS2_32.dll", "send", reinterpret_cast<void **>(&g_OriginalSend), reinterpret_cast<void *>(&SendHook)},
         {"WS2_32.dll", "recv", reinterpret_cast<void **>(&g_OriginalRecv), reinterpret_cast<void *>(&RecvHook)},
-        {"WS2_32.dll",
-         "connect",
-         reinterpret_cast<void **>(&g_OriginalConnect),
+        {"WS2_32.dll", "connect", reinterpret_cast<void **>(&g_OriginalConnect),
          reinterpret_cast<void *>(&ConnectHook)},
-        {"WS2_32.dll",
-         "WSAConnect",
-         reinterpret_cast<void **>(&g_OriginalWsaConnect),
+        {"WS2_32.dll", "WSAConnect", reinterpret_cast<void **>(&g_OriginalWsaConnect),
          reinterpret_cast<void *>(&WsaConnectHook)},
-        {"WS2_32.dll",
-         "GetAddrInfoW",
-         reinterpret_cast<void **>(&g_OriginalGetAddrInfoW),
+        {"WS2_32.dll", "GetAddrInfoW", reinterpret_cast<void **>(&g_OriginalGetAddrInfoW),
          reinterpret_cast<void *>(&GetAddrInfoWHook)},
-        {"WS2_32.dll",
-         "getaddrinfo",
-         reinterpret_cast<void **>(&g_OriginalGetAddrInfoA),
+        {"WS2_32.dll", "getaddrinfo", reinterpret_cast<void **>(&g_OriginalGetAddrInfoA),
          reinterpret_cast<void *>(&GetAddrInfoAHook)},
-        {"DNSAPI.dll",
-         "DnsQuery_W",
-         reinterpret_cast<void **>(&g_OriginalDnsQueryW),
+        {"DNSAPI.dll", "DnsQuery_W", reinterpret_cast<void **>(&g_OriginalDnsQueryW),
          reinterpret_cast<void *>(&DnsQueryWHook)},
-        {"DNSAPI.dll",
-         "DnsQuery_A",
-         reinterpret_cast<void **>(&g_OriginalDnsQueryA),
+        {"DNSAPI.dll", "DnsQuery_A", reinterpret_cast<void **>(&g_OriginalDnsQueryA),
          reinterpret_cast<void *>(&DnsQueryAHook)},
     };
 
@@ -1263,10 +1181,10 @@ namespace
                         continue;
                     }
 
-                    if (install && !IX_RUNTIME_INTERNAL::RegisterControlFlowGuardCallTarget(
-                                       hookEntry.HookFunction,
-                                       IX_RUNTIME_INTERNAL::IxCfgCallTargetMode::CfgAndXfgWhenEnabled,
-                                       hookEntry.FunctionName))
+                    if (install &&
+                        !IX_RUNTIME_INTERNAL::RegisterControlFlowGuardCallTarget(
+                            hookEntry.HookFunction, IX_RUNTIME_INTERNAL::IxCfgCallTargetMode::CfgAndXfgWhenEnabled,
+                            hookEntry.FunctionName))
                     {
                         continue;
                     }
@@ -1562,8 +1480,8 @@ std::size_t IxCollectWinsockHookPatchInfos(WinsockHookPatchInfo *out, std::size_
         out[count].PatchAddress = g_PatchedSlots[i].Slot;
         out[count].PatchSize = sizeof(g_PatchedSlots[i].OriginalValue);
         std::memset(out[count].OriginalBytes, 0, sizeof(out[count].OriginalBytes));
-        std::memcpy(
-            out[count].OriginalBytes, &g_PatchedSlots[i].OriginalValue, sizeof(g_PatchedSlots[i].OriginalValue));
+        std::memcpy(out[count].OriginalBytes, &g_PatchedSlots[i].OriginalValue,
+                    sizeof(g_PatchedSlots[i].OriginalValue));
         out[count].HookName = g_PatchedSlots[i].FunctionName;
         out[count].Flags = IX_HOOK_PATCH_FLAG_WINSOCK_IAT;
         ++count;

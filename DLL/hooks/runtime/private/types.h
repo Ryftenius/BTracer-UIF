@@ -74,10 +74,10 @@ namespace IX_RUNTIME_INTERNAL
     using KH_CLIENT_ID = IX_CLIENT_ID;
     using PKH_CLIENT_ID = PIX_CLIENT_ID;
 
-    using NtCreateThreadExFn = NTSTATUS(NTAPI *)(
-        PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, HANDLE, PVOID, PVOID, ULONG, SIZE_T, SIZE_T, SIZE_T, PVOID);
-    using RtlCreateUserThreadFn = NTSTATUS(NTAPI *)(
-        HANDLE, PSECURITY_DESCRIPTOR, BOOLEAN, ULONG, PULONG, PULONG, PVOID, PVOID, PHANDLE, PKH_CLIENT_ID);
+    using NtCreateThreadExFn = NTSTATUS(NTAPI *)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, HANDLE, PVOID, PVOID, ULONG,
+                                                 SIZE_T, SIZE_T, SIZE_T, PVOID);
+    using RtlCreateUserThreadFn = NTSTATUS(NTAPI *)(HANDLE, PSECURITY_DESCRIPTOR, BOOLEAN, ULONG, PULONG, PULONG, PVOID,
+                                                    PVOID, PHANDLE, PKH_CLIENT_ID);
     using NtTerminateProcessFn = NTSTATUS(NTAPI *)(HANDLE, NTSTATUS);
     using RtlExitUserThreadFn = VOID(NTAPI *)(NTSTATUS);
     using RtlRestoreContextFn = VOID(WINAPI *)(PCONTEXT, PEXCEPTION_RECORD);
@@ -130,7 +130,7 @@ namespace IX_RUNTIME_INTERNAL
         bool StackTrace = false;
         bool Registers = false;
         bool StackFabricate = false;
-        std::uint32_t Action = IXIPC_HOOK_ACTION_NONE;
+        std::uint32_t Action = SKUGGA_IPC_HOOK_ACTION_NONE;
         NTSTATUS Status = 0;
         IC_STACKTRACE::Trace Trace{};
     };
@@ -179,7 +179,7 @@ namespace IX_RUNTIME_INTERNAL
     extern std::atomic<bool> g_RuntimeInitialized;
     extern std::atomic<bool> g_RuntimeWorkerStarted;
     extern std::atomic<std::uint32_t> g_LastPublishedHookReadyMask;
-    extern IxBlindTelemetryArguments g_RuntimeVehArgs;
+    extern IxSkuggaTelemetryArguments g_RuntimeVehArgs;
     extern std::atomic<bool> g_LaunchGatePrepared;
     extern std::atomic<bool> g_LaunchGateReady;
     extern std::atomic<bool> g_LaunchGateDeferredOpen;

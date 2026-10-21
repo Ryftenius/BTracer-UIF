@@ -1,6 +1,6 @@
-﻿#include "internal.h"
+#include "internal.h"
 
-namespace blind::mapper
+namespace skugga::mapper
 {
     bool ResolveRemoteRtlAddFunctionTable(ServerContext &ctx, HANDLE process, UINT64 &remoteAddress)
     {
@@ -133,21 +133,14 @@ namespace blind::mapper
         if (!threadOk || !readResult)
         {
             const DWORD bootstrapError = wait == WAIT_TIMEOUT ? ERROR_TIMEOUT : resultError;
-            HostDebugLog(ctx,
-                         "manual-map: bootstrap wait=%lu exit=0x%08lX read=%u gle=%lu",
-                         wait,
-                         exitCode,
-                         readResult ? 1u : 0u,
-                         bootstrapError);
+            HostDebugLog(ctx, "manual-map: bootstrap wait=%lu exit=0x%08lX read=%u gle=%lu", wait, exitCode,
+                         readResult ? 1u : 0u, bootstrapError);
             SetLastError(bootstrapError != ERROR_SUCCESS ? bootstrapError : ERROR_INVALID_FUNCTION);
             return Fail(ctx, "bootstrap thread failed");
         }
         if (exitCode == 0 || result.Status != kBootstrapSucceeded)
         {
-            HostDebugLog(ctx,
-                         "manual-map: bootstrap status=0x%08lX exit=0x%08lX entry=0x%llX",
-                         result.Status,
-                         exitCode,
+            HostDebugLog(ctx, "manual-map: bootstrap status=0x%08lX exit=0x%08lX entry=0x%llX", result.Status, exitCode,
                          static_cast<unsigned long long>(result.EntryResult));
             if (result.Status == kBootstrapRtlAddFunctionTableFailed)
             {
@@ -163,13 +156,10 @@ namespace blind::mapper
             return Fail(ctx, "bootstrap did not complete successfully");
         }
 
-        HostDebugLog(ctx,
-                     "manual-map: bootstrap complete image=0x%llX entry=0x%llX tls=0x%llX pdata=0x%llX count=%lu",
-                     static_cast<unsigned long long>(data.ImageBase),
-                     static_cast<unsigned long long>(data.EntryPoint),
+        HostDebugLog(ctx, "manual-map: bootstrap complete image=0x%llX entry=0x%llX tls=0x%llX pdata=0x%llX count=%lu",
+                     static_cast<unsigned long long>(data.ImageBase), static_cast<unsigned long long>(data.EntryPoint),
                      static_cast<unsigned long long>(data.TlsCallbacks),
-                     static_cast<unsigned long long>(data.ExceptionTable),
-                     data.ExceptionCount);
+                     static_cast<unsigned long long>(data.ExceptionTable), data.ExceptionCount);
         return true;
     }
-} // namespace blind::mapper
+} // namespace skugga::mapper

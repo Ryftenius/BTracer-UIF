@@ -1,6 +1,6 @@
-﻿#include "internal.h"
+#include "internal.h"
 
-namespace blind::mapper
+namespace skugga::mapper
 {
     bool ApplyRelocations(ServerContext &ctx, MappedImage &mapped, UINT64 remoteBase)
     {
@@ -84,4 +84,4 @@ namespace blind::mapper
 
         return true;
     }
-} // namespace blind::mapper
+} // namespace skugga::mapper

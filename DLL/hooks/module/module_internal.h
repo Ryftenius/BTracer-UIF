@@ -3,7 +3,7 @@
 #include "module.h"
 #include "../runtime/runtime_internal.h"
 #include "../ws.h"
-#include "../../../ABI/blind_ipc.h"
+#include "../../../ABI/skugga_ipc.h"
 
 #include <evntprov.h>
 #include <evntrace.h>
@@ -71,28 +71,28 @@ namespace IX_MODULE_INTERNAL
     using LoadLibraryExWFn = HMODULE(WINAPI *)(LPCWSTR, HANDLE, DWORD);
     using LdrLoadDllFn = NTSTATUS(NTAPI *)(PWSTR, PULONG, PUNICODE_STRING, PHANDLE);
     using RtlAddFunctionTableFn = BOOLEAN(WINAPI *)(RuntimeFunctionTablePointer, DWORD, DWORD64);
-    using RtlInstallFunctionTableCallbackFn =
-        BOOLEAN(WINAPI *)(DWORD64, DWORD64, DWORD, RuntimeFunctionTableCallback, PVOID, PCWSTR);
+    using RtlInstallFunctionTableCallbackFn = BOOLEAN(WINAPI *)(DWORD64, DWORD64, DWORD, RuntimeFunctionTableCallback,
+                                                                PVOID, PCWSTR);
     using RtlDeleteFunctionTableFn = BOOLEAN(WINAPI *)(RuntimeFunctionTablePointer);
     using RtlAddVectoredExceptionHandlerFn = PVOID(NTAPI *)(ULONG, PVECTORED_EXCEPTION_HANDLER);
     using RtlRemoveVectoredExceptionHandlerFn = ULONG(NTAPI *)(PVOID);
     using SetUnhandledExceptionFilterFn = LPTOP_LEVEL_EXCEPTION_FILTER(WINAPI *)(LPTOP_LEVEL_EXCEPTION_FILTER);
     using CoInitializeExFn = HRESULT(WINAPI *)(LPVOID, DWORD);
-    using CoInitializeSecurityFn = HRESULT(WINAPI *)(
-        PSECURITY_DESCRIPTOR, LONG, SOLE_AUTHENTICATION_SERVICE *, void *, DWORD, DWORD, void *, DWORD, void *);
+    using CoInitializeSecurityFn = HRESULT(WINAPI *)(PSECURITY_DESCRIPTOR, LONG, SOLE_AUTHENTICATION_SERVICE *, void *,
+                                                     DWORD, DWORD, void *, DWORD, void *);
     using CoCreateInstanceFn = HRESULT(WINAPI *)(REFCLSID, LPUNKNOWN, DWORD, REFIID, LPVOID *);
     using EventRegisterFn = ULONG(WINAPI *)(LPCGUID, PENABLECALLBACK, PVOID, PREGHANDLE);
     using EventUnregisterFn = ULONG(WINAPI *)(REGHANDLE);
     using StartTraceWFn = ULONG(WINAPI *)(PTRACEHANDLE, LPCWSTR, PEVENT_TRACE_PROPERTIES);
-    using EnableTraceEx2Fn =
-        ULONG(WINAPI *)(TRACEHANDLE, LPCGUID, ULONG, UCHAR, ULONGLONG, ULONGLONG, ULONG, PENABLE_TRACE_PARAMETERS);
+    using EnableTraceEx2Fn = ULONG(WINAPI *)(TRACEHANDLE, LPCGUID, ULONG, UCHAR, ULONGLONG, ULONGLONG, ULONG,
+                                             PENABLE_TRACE_PARAMETERS);
     using EtwEventWriteFn = ULONG(NTAPI *)(REGHANDLE, PCEVENT_DESCRIPTOR, ULONG, PEVENT_DATA_DESCRIPTOR);
-    using EtwEventWriteExFn =
-        ULONG(NTAPI *)(REGHANDLE, PCEVENT_DESCRIPTOR, ULONG64, ULONG, LPCGUID, LPCGUID, ULONG, PEVENT_DATA_DESCRIPTOR);
-    using EtwEventWriteFullFn =
-        ULONG(NTAPI *)(REGHANDLE, PCEVENT_DESCRIPTOR, USHORT, LPCGUID, LPCGUID, ULONG, PEVENT_DATA_DESCRIPTOR);
-    using EtwEventWriteTransferFn =
-        ULONG(NTAPI *)(REGHANDLE, PCEVENT_DESCRIPTOR, LPCGUID, LPCGUID, ULONG, PEVENT_DATA_DESCRIPTOR);
+    using EtwEventWriteExFn = ULONG(NTAPI *)(REGHANDLE, PCEVENT_DESCRIPTOR, ULONG64, ULONG, LPCGUID, LPCGUID, ULONG,
+                                             PEVENT_DATA_DESCRIPTOR);
+    using EtwEventWriteFullFn = ULONG(NTAPI *)(REGHANDLE, PCEVENT_DESCRIPTOR, USHORT, LPCGUID, LPCGUID, ULONG,
+                                               PEVENT_DATA_DESCRIPTOR);
+    using EtwEventWriteTransferFn = ULONG(NTAPI *)(REGHANDLE, PCEVENT_DESCRIPTOR, LPCGUID, LPCGUID, ULONG,
+                                                   PEVENT_DATA_DESCRIPTOR);
     using CreateJobObjectWFn = HANDLE(WINAPI *)(LPSECURITY_ATTRIBUTES, LPCWSTR);
     using OpenJobObjectWFn = HANDLE(WINAPI *)(DWORD, BOOL, LPCWSTR);
     using AssignProcessToJobObjectFn = BOOL(WINAPI *)(HANDLE, HANDLE);
@@ -102,10 +102,10 @@ namespace IX_MODULE_INTERNAL
     using LsaCallAuthenticationPackageFn = NTSTATUS(WINAPI *)(HANDLE, ULONG, PVOID, ULONG, PVOID *, PULONG, PNTSTATUS);
     using AcquireCredentialsHandleAFn = LONG(WINAPI *)(LPSTR, LPSTR, ULONG, PLUID, PVOID, PVOID, PVOID, PVOID, PVOID);
     using AcquireCredentialsHandleWFn = LONG(WINAPI *)(LPWSTR, LPWSTR, ULONG, PLUID, PVOID, PVOID, PVOID, PVOID, PVOID);
-    using InitializeSecurityContextAFn =
-        LONG(WINAPI *)(PVOID, PVOID, LPSTR, ULONG, ULONG, ULONG, PVOID, ULONG, PVOID, PVOID, PULONG, PVOID);
-    using InitializeSecurityContextWFn =
-        LONG(WINAPI *)(PVOID, PVOID, LPWSTR, ULONG, ULONG, ULONG, PVOID, ULONG, PVOID, PVOID, PULONG, PVOID);
+    using InitializeSecurityContextAFn = LONG(WINAPI *)(PVOID, PVOID, LPSTR, ULONG, ULONG, ULONG, PVOID, ULONG, PVOID,
+                                                        PVOID, PULONG, PVOID);
+    using InitializeSecurityContextWFn = LONG(WINAPI *)(PVOID, PVOID, LPWSTR, ULONG, ULONG, ULONG, PVOID, ULONG, PVOID,
+                                                        PVOID, PULONG, PVOID);
     using AcceptSecurityContextFn = LONG(WINAPI *)(PVOID, PVOID, PVOID, ULONG, ULONG, PVOID, PVOID, PULONG, PVOID);
     using CredReadAFn = BOOL(WINAPI *)(LPCSTR, DWORD, DWORD, PVOID *);
     using CredReadWFn = BOOL(WINAPI *)(LPCWSTR, DWORD, DWORD, PVOID *);
@@ -119,8 +119,8 @@ namespace IX_MODULE_INTERNAL
     using VaultOpenVaultFn = DWORD(WINAPI *)(const GUID *, DWORD, HANDLE *);
     using VaultEnumerateItemsFn = DWORD(WINAPI *)(HANDLE, DWORD, DWORD *, PVOID *);
     using VaultGetItemFn = DWORD(WINAPI *)(HANDLE, const GUID *, PVOID, PVOID, PVOID, HWND, DWORD, PVOID *);
-    using CryptUnprotectDataFn =
-        BOOL(WINAPI *)(DATA_BLOB *, LPWSTR *, DATA_BLOB *, PVOID, CRYPTPROTECT_PROMPTSTRUCT *, DWORD, DATA_BLOB *);
+    using CryptUnprotectDataFn = BOOL(WINAPI *)(DATA_BLOB *, LPWSTR *, DATA_BLOB *, PVOID, CRYPTPROTECT_PROMPTSTRUCT *,
+                                                DWORD, DATA_BLOB *);
     using NCryptUnprotectSecretFn = LONG(WINAPI *)(PVOID *, DWORD, const BYTE *, ULONG, PVOID, HWND, BYTE **, ULONG *);
     using NCryptOpenStorageProviderFn = LONG(WINAPI *)(PVOID *, LPCWSTR, DWORD);
     using NCryptOpenKeyFn = LONG(WINAPI *)(PVOID, PVOID *, LPCWSTR, DWORD, DWORD);
@@ -139,8 +139,8 @@ namespace IX_MODULE_INTERNAL
     using WinHttpConnectFn = PVOID(WINAPI *)(PVOID, LPCWSTR, INTERNET_PORT, DWORD);
     using WinHttpOpenRequestFn = PVOID(WINAPI *)(PVOID, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR *, DWORD);
     using WinHttpSendRequestFn = BOOL(WINAPI *)(PVOID, LPCWSTR, DWORD, PVOID, DWORD, DWORD, DWORD_PTR);
-    using InternetConnectWFn =
-        PVOID(WINAPI *)(PVOID, LPCWSTR, INTERNET_PORT, LPCWSTR, LPCWSTR, DWORD, DWORD, DWORD_PTR);
+    using InternetConnectWFn = PVOID(WINAPI *)(PVOID, LPCWSTR, INTERNET_PORT, LPCWSTR, LPCWSTR, DWORD, DWORD,
+                                               DWORD_PTR);
     using InternetConnectAFn = PVOID(WINAPI *)(PVOID, LPCSTR, INTERNET_PORT, LPCSTR, LPCSTR, DWORD, DWORD, DWORD_PTR);
     using HttpOpenRequestWFn = PVOID(WINAPI *)(PVOID, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR *, DWORD, DWORD_PTR);
     using HttpOpenRequestAFn = PVOID(WINAPI *)(PVOID, LPCSTR, LPCSTR, LPCSTR, LPCSTR, LPCSTR *, DWORD, DWORD_PTR);
@@ -160,7 +160,7 @@ namespace IX_MODULE_INTERNAL
         void *Trampoline;
         std::uint8_t OriginalBytes[16];
         bool Installed;
-        std::uint32_t HookMethod = IXIPC_HOOK_METHOD_INLINE;
+        std::uint32_t HookMethod = SKUGGA_IPC_HOOK_METHOD_INLINE;
         void **IatSlots[256]{};
         void *IatOriginals[256]{};
         std::size_t IatSlotCount = 0;
@@ -263,11 +263,8 @@ namespace IX_MODULE_INTERNAL
     DWORD EnsureModuleHookTls() noexcept;
     bool IsModuleHookReentered() noexcept;
     void ResetModuleHookInitFault() noexcept;
-    void SetModuleHookInitFault(ModuleHookInitFaultCode code,
-                                const wchar_t *moduleName,
-                                const char *exportName,
-                                void *address,
-                                void *redirectTarget = nullptr) noexcept;
+    void SetModuleHookInitFault(ModuleHookInitFaultCode code, const wchar_t *moduleName, const char *exportName,
+                                void *address, void *redirectTarget = nullptr) noexcept;
     bool TryResolveModuleImageRange(HMODULE module, ModuleRange &range) noexcept;
     bool AddressWithinRange(void *address, const ModuleRange &range) noexcept;
     bool TryDecodeAbsoluteTarget(void *entry, void *&target) noexcept;
@@ -280,17 +277,10 @@ namespace IX_MODULE_INTERNAL
     bool RefreshModuleIatHook(InlineHook &hook, HMODULE moduleHandle) noexcept;
     void RemoveModuleIatHook(InlineHook &hook) noexcept;
     bool CheckModuleIatHookIntegrity(const InlineHook &hook) noexcept;
-    void PublishModuleEvent(ModuleHookOperation operation,
-                            const char *functionName,
-                            const char *sourceModule,
-                            HMODULE moduleHandle,
-                            const void *nameBuffer,
-                            std::size_t nameLength,
-                            std::uint64_t arg0 = 0,
-                            std::uint64_t arg1 = 0,
-                            std::uint64_t arg2 = 0,
-                            std::uint64_t arg3 = 0,
-                            void *caller = nullptr) noexcept;
+    void PublishModuleEvent(ModuleHookOperation operation, const char *functionName, const char *sourceModule,
+                            HMODULE moduleHandle, const void *nameBuffer, std::size_t nameLength,
+                            std::uint64_t arg0 = 0, std::uint64_t arg1 = 0, std::uint64_t arg2 = 0,
+                            std::uint64_t arg3 = 0, void *caller = nullptr) noexcept;
     std::size_t CopyAnsiLength(LPCSTR value) noexcept;
     std::size_t CopyWideLength(LPCWSTR value) noexcept;
     void CopyLiteralWide(wchar_t buffer[32], const wchar_t *value) noexcept;
@@ -317,139 +307,66 @@ namespace IX_MODULE_INTERNAL
     HMODULE WINAPI LoadLibraryWHook(LPCWSTR lpLibFileName);
     HMODULE WINAPI LoadLibraryExAHook(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
     HMODULE WINAPI LoadLibraryExWHook(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
-    NTSTATUS NTAPI LdrLoadDllHook(PWSTR searchPath,
-                                  PULONG loadFlags,
-                                  PUNICODE_STRING moduleFileName,
+    NTSTATUS NTAPI LdrLoadDllHook(PWSTR searchPath, PULONG loadFlags, PUNICODE_STRING moduleFileName,
                                   PHANDLE moduleHandle);
-    BOOLEAN WINAPI RtlAddFunctionTableHook(RuntimeFunctionTablePointer functionTable,
-                                           DWORD entryCount,
+    BOOLEAN WINAPI RtlAddFunctionTableHook(RuntimeFunctionTablePointer functionTable, DWORD entryCount,
                                            DWORD64 baseAddress);
-    BOOLEAN WINAPI RtlInstallFunctionTableCallbackHook(DWORD64 tableIdentifier,
-                                                       DWORD64 baseAddress,
-                                                       DWORD length,
-                                                       RuntimeFunctionTableCallback callback,
-                                                       PVOID context,
+    BOOLEAN WINAPI RtlInstallFunctionTableCallbackHook(DWORD64 tableIdentifier, DWORD64 baseAddress, DWORD length,
+                                                       RuntimeFunctionTableCallback callback, PVOID context,
                                                        PCWSTR outOfProcessCallbackDll);
     BOOLEAN WINAPI RtlDeleteFunctionTableHook(RuntimeFunctionTablePointer functionTable);
     PVOID NTAPI RtlAddVectoredExceptionHandlerHook(ULONG first, PVECTORED_EXCEPTION_HANDLER handler);
     ULONG NTAPI RtlRemoveVectoredExceptionHandlerHook(PVOID handle);
     LPTOP_LEVEL_EXCEPTION_FILTER WINAPI SetUnhandledExceptionFilterHook(LPTOP_LEVEL_EXCEPTION_FILTER filter);
     HRESULT WINAPI CoInitializeExHook(LPVOID pvReserved, DWORD dwCoInit);
-    HRESULT WINAPI CoInitializeSecurityHook(PSECURITY_DESCRIPTOR pSecDesc,
-                                            LONG cAuthSvc,
-                                            SOLE_AUTHENTICATION_SERVICE *asAuthSvc,
-                                            void *pReserved1,
-                                            DWORD dwAuthnLevel,
-                                            DWORD dwImpLevel,
-                                            void *pAuthList,
-                                            DWORD dwCapabilities,
+    HRESULT WINAPI CoInitializeSecurityHook(PSECURITY_DESCRIPTOR pSecDesc, LONG cAuthSvc,
+                                            SOLE_AUTHENTICATION_SERVICE *asAuthSvc, void *pReserved1,
+                                            DWORD dwAuthnLevel, DWORD dwImpLevel, void *pAuthList, DWORD dwCapabilities,
                                             void *pReserved3);
-    HRESULT WINAPI
-    CoCreateInstanceHook(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid, LPVOID *ppv);
-    ULONG WINAPI EventRegisterHook(LPCGUID providerId,
-                                   PENABLECALLBACK enableCallback,
-                                   PVOID callbackContext,
+    HRESULT WINAPI CoCreateInstanceHook(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid,
+                                        LPVOID *ppv);
+    ULONG WINAPI EventRegisterHook(LPCGUID providerId, PENABLECALLBACK enableCallback, PVOID callbackContext,
                                    PREGHANDLE regHandle);
     ULONG WINAPI EventUnregisterHook(REGHANDLE regHandle);
     ULONG WINAPI StartTraceWHook(PTRACEHANDLE sessionHandle, LPCWSTR sessionName, PEVENT_TRACE_PROPERTIES properties);
-    ULONG WINAPI EnableTraceEx2Hook(TRACEHANDLE traceHandle,
-                                    LPCGUID providerId,
-                                    ULONG controlCode,
-                                    UCHAR level,
-                                    ULONGLONG matchAnyKeyword,
-                                    ULONGLONG matchAllKeyword,
-                                    ULONG timeout,
+    ULONG WINAPI EnableTraceEx2Hook(TRACEHANDLE traceHandle, LPCGUID providerId, ULONG controlCode, UCHAR level,
+                                    ULONGLONG matchAnyKeyword, ULONGLONG matchAllKeyword, ULONG timeout,
                                     PENABLE_TRACE_PARAMETERS enableParameters);
-    ULONG NTAPI EtwEventWriteHook(REGHANDLE regHandle,
-                                  PCEVENT_DESCRIPTOR eventDescriptor,
-                                  ULONG userDataCount,
+    ULONG NTAPI EtwEventWriteHook(REGHANDLE regHandle, PCEVENT_DESCRIPTOR eventDescriptor, ULONG userDataCount,
                                   PEVENT_DATA_DESCRIPTOR userData);
-    ULONG NTAPI EtwEventWriteExHook(REGHANDLE regHandle,
-                                    PCEVENT_DESCRIPTOR eventDescriptor,
-                                    ULONG64 filter,
-                                    ULONG flags,
-                                    LPCGUID activityId,
-                                    LPCGUID relatedActivityId,
-                                    ULONG userDataCount,
+    ULONG NTAPI EtwEventWriteExHook(REGHANDLE regHandle, PCEVENT_DESCRIPTOR eventDescriptor, ULONG64 filter,
+                                    ULONG flags, LPCGUID activityId, LPCGUID relatedActivityId, ULONG userDataCount,
                                     PEVENT_DATA_DESCRIPTOR userData);
-    ULONG NTAPI EtwEventWriteFullHook(REGHANDLE regHandle,
-                                      PCEVENT_DESCRIPTOR eventDescriptor,
-                                      USHORT eventProperty,
-                                      LPCGUID activityId,
-                                      LPCGUID relatedActivityId,
-                                      ULONG userDataCount,
+    ULONG NTAPI EtwEventWriteFullHook(REGHANDLE regHandle, PCEVENT_DESCRIPTOR eventDescriptor, USHORT eventProperty,
+                                      LPCGUID activityId, LPCGUID relatedActivityId, ULONG userDataCount,
                                       PEVENT_DATA_DESCRIPTOR userData);
-    ULONG NTAPI EtwEventWriteTransferHook(REGHANDLE regHandle,
-                                          PCEVENT_DESCRIPTOR eventDescriptor,
-                                          LPCGUID activityId,
-                                          LPCGUID relatedActivityId,
-                                          ULONG userDataCount,
+    ULONG NTAPI EtwEventWriteTransferHook(REGHANDLE regHandle, PCEVENT_DESCRIPTOR eventDescriptor, LPCGUID activityId,
+                                          LPCGUID relatedActivityId, ULONG userDataCount,
                                           PEVENT_DATA_DESCRIPTOR userData);
     HANDLE WINAPI CreateJobObjectWHook(LPSECURITY_ATTRIBUTES securityAttributes, LPCWSTR name);
     HANDLE WINAPI OpenJobObjectWHook(DWORD desiredAccess, BOOL inheritHandle, LPCWSTR name);
     BOOL WINAPI AssignProcessToJobObjectHook(HANDLE job, HANDLE process);
     BOOL WINAPI SetInformationJobObjectHook(HANDLE job, JOBOBJECTINFOCLASS infoClass, LPVOID info, DWORD infoLength);
     NTSTATUS WINAPI LsaConnectUntrustedHook(PHANDLE lsaHandle);
-    NTSTATUS WINAPI LsaLookupAuthenticationPackageHook(HANDLE lsaHandle,
-                                                       PLSA_STRING packageName,
+    NTSTATUS WINAPI LsaLookupAuthenticationPackageHook(HANDLE lsaHandle, PLSA_STRING packageName,
                                                        PULONG authenticationPackage);
-    NTSTATUS WINAPI LsaCallAuthenticationPackageHook(HANDLE lsaHandle,
-                                                     ULONG authenticationPackage,
-                                                     PVOID submitBuffer,
-                                                     ULONG submitBufferLength,
-                                                     PVOID *returnBuffer,
-                                                     PULONG returnBufferLength,
-                                                     PNTSTATUS protocolStatus);
-    LONG WINAPI AcquireCredentialsHandleAHook(LPSTR principal,
-                                              LPSTR package,
-                                              ULONG credentialUse,
-                                              PLUID logonId,
-                                              PVOID authData,
-                                              PVOID getKeyFn,
-                                              PVOID getKeyArgument,
-                                              PVOID credential,
+    NTSTATUS WINAPI LsaCallAuthenticationPackageHook(HANDLE lsaHandle, ULONG authenticationPackage, PVOID submitBuffer,
+                                                     ULONG submitBufferLength, PVOID *returnBuffer,
+                                                     PULONG returnBufferLength, PNTSTATUS protocolStatus);
+    LONG WINAPI AcquireCredentialsHandleAHook(LPSTR principal, LPSTR package, ULONG credentialUse, PLUID logonId,
+                                              PVOID authData, PVOID getKeyFn, PVOID getKeyArgument, PVOID credential,
                                               PVOID expiry);
-    LONG WINAPI AcquireCredentialsHandleWHook(LPWSTR principal,
-                                              LPWSTR package,
-                                              ULONG credentialUse,
-                                              PLUID logonId,
-                                              PVOID authData,
-                                              PVOID getKeyFn,
-                                              PVOID getKeyArgument,
-                                              PVOID credential,
+    LONG WINAPI AcquireCredentialsHandleWHook(LPWSTR principal, LPWSTR package, ULONG credentialUse, PLUID logonId,
+                                              PVOID authData, PVOID getKeyFn, PVOID getKeyArgument, PVOID credential,
                                               PVOID expiry);
-    LONG WINAPI InitializeSecurityContextAHook(PVOID credential,
-                                               PVOID context,
-                                               LPSTR targetName,
-                                               ULONG contextReq,
-                                               ULONG reserved1,
-                                               ULONG targetDataRep,
-                                               PVOID input,
-                                               ULONG reserved2,
-                                               PVOID newContext,
-                                               PVOID output,
-                                               PULONG contextAttr,
-                                               PVOID expiry);
-    LONG WINAPI InitializeSecurityContextWHook(PVOID credential,
-                                               PVOID context,
-                                               LPWSTR targetName,
-                                               ULONG contextReq,
-                                               ULONG reserved1,
-                                               ULONG targetDataRep,
-                                               PVOID input,
-                                               ULONG reserved2,
-                                               PVOID newContext,
-                                               PVOID output,
-                                               PULONG contextAttr,
-                                               PVOID expiry);
-    LONG WINAPI AcceptSecurityContextHook(PVOID credential,
-                                          PVOID context,
-                                          PVOID input,
-                                          ULONG contextReq,
-                                          ULONG targetDataRep,
-                                          PVOID newContext,
-                                          PVOID output,
-                                          PULONG contextAttr,
+    LONG WINAPI InitializeSecurityContextAHook(PVOID credential, PVOID context, LPSTR targetName, ULONG contextReq,
+                                               ULONG reserved1, ULONG targetDataRep, PVOID input, ULONG reserved2,
+                                               PVOID newContext, PVOID output, PULONG contextAttr, PVOID expiry);
+    LONG WINAPI InitializeSecurityContextWHook(PVOID credential, PVOID context, LPWSTR targetName, ULONG contextReq,
+                                               ULONG reserved1, ULONG targetDataRep, PVOID input, ULONG reserved2,
+                                               PVOID newContext, PVOID output, PULONG contextAttr, PVOID expiry);
+    LONG WINAPI AcceptSecurityContextHook(PVOID credential, PVOID context, PVOID input, ULONG contextReq,
+                                          ULONG targetDataRep, PVOID newContext, PVOID output, PULONG contextAttr,
                                           PVOID expiry);
     BOOL WINAPI CredReadAHook(LPCSTR targetName, DWORD type, DWORD flags, PVOID *credential);
     BOOL WINAPI CredReadWHook(LPCWSTR targetName, DWORD type, DWORD flags, PVOID *credential);
@@ -457,125 +374,59 @@ namespace IX_MODULE_INTERNAL
     BOOL WINAPI CredEnumerateWHook(LPCWSTR filter, DWORD flags, DWORD *count, PVOID *credential);
     BOOL WINAPI CredReadDomainCredentialsAHook(PVOID targetInfo, DWORD flags, DWORD *count, PVOID *credential);
     BOOL WINAPI CredReadDomainCredentialsWHook(PVOID targetInfo, DWORD flags, DWORD *count, PVOID *credential);
-    NTSTATUS WINAPI LsaOpenPolicyHook(PLSA_UNICODE_STRING systemName,
-                                      PLSA_OBJECT_ATTRIBUTES objectAttributes,
-                                      ACCESS_MASK desiredAccess,
-                                      PLSA_HANDLE policyHandle);
-    NTSTATUS WINAPI LsaQueryInformationPolicyHook(LSA_HANDLE policyHandle,
-                                                  POLICY_INFORMATION_CLASS informationClass,
+    NTSTATUS WINAPI LsaOpenPolicyHook(PLSA_UNICODE_STRING systemName, PLSA_OBJECT_ATTRIBUTES objectAttributes,
+                                      ACCESS_MASK desiredAccess, PLSA_HANDLE policyHandle);
+    NTSTATUS WINAPI LsaQueryInformationPolicyHook(LSA_HANDLE policyHandle, POLICY_INFORMATION_CLASS informationClass,
                                                   PVOID *buffer);
     DWORD WINAPI VaultEnumerateVaultsHook(DWORD flags, DWORD *count, GUID **vaultGuids);
     DWORD WINAPI VaultOpenVaultHook(const GUID *vaultGuid, DWORD flags, HANDLE *vaultHandle);
     DWORD WINAPI VaultEnumerateItemsHook(HANDLE vaultHandle, DWORD flags, DWORD *count, PVOID *items);
-    DWORD WINAPI VaultGetItemHook(HANDLE vaultHandle,
-                                  const GUID *schemaId,
-                                  PVOID resource,
-                                  PVOID identity,
-                                  PVOID packageSid,
-                                  HWND hwndOwner,
-                                  DWORD flags,
-                                  PVOID *item);
-    BOOL WINAPI CryptUnprotectDataHook(DATA_BLOB *dataIn,
-                                       LPWSTR *dataDescription,
-                                       DATA_BLOB *optionalEntropy,
-                                       PVOID reserved,
-                                       CRYPTPROTECT_PROMPTSTRUCT *promptStruct,
-                                       DWORD flags,
+    DWORD WINAPI VaultGetItemHook(HANDLE vaultHandle, const GUID *schemaId, PVOID resource, PVOID identity,
+                                  PVOID packageSid, HWND hwndOwner, DWORD flags, PVOID *item);
+    BOOL WINAPI CryptUnprotectDataHook(DATA_BLOB *dataIn, LPWSTR *dataDescription, DATA_BLOB *optionalEntropy,
+                                       PVOID reserved, CRYPTPROTECT_PROMPTSTRUCT *promptStruct, DWORD flags,
                                        DATA_BLOB *dataOut);
-    LONG WINAPI NCryptUnprotectSecretHook(PVOID *descriptor,
-                                          DWORD flags,
-                                          const BYTE *protectedBlob,
-                                          ULONG protectedBlobSize,
-                                          PVOID memPara,
-                                          HWND hwnd,
-                                          BYTE **data,
+    LONG WINAPI NCryptUnprotectSecretHook(PVOID *descriptor, DWORD flags, const BYTE *protectedBlob,
+                                          ULONG protectedBlobSize, PVOID memPara, HWND hwnd, BYTE **data,
                                           ULONG *dataSize);
     LONG WINAPI NCryptOpenStorageProviderHook(PVOID *provider, LPCWSTR providerName, DWORD flags);
     LONG WINAPI NCryptOpenKeyHook(PVOID provider, PVOID *key, LPCWSTR keyName, DWORD legacyKeySpec, DWORD flags);
-    LONG WINAPI NCryptDecryptHook(PVOID key,
-                                  PBYTE input,
-                                  DWORD inputSize,
-                                  PVOID paddingInfo,
-                                  PBYTE output,
-                                  DWORD outputSize,
-                                  DWORD *resultSize,
-                                  DWORD flags);
+    LONG WINAPI NCryptDecryptHook(PVOID key, PBYTE input, DWORD inputSize, PVOID paddingInfo, PBYTE output,
+                                  DWORD outputSize, DWORD *resultSize, DWORD flags);
     DWORD WINAPI CfAbortOperationHook(DWORD processId, PVOID unknown, DWORD flags);
-    HRESULT WINAPI CfRegisterSyncRootHook(LPCWSTR syncRootPath,
-                                          const void *registration,
-                                          const void *policies,
+    HRESULT WINAPI CfRegisterSyncRootHook(LPCWSTR syncRootPath, const void *registration, const void *policies,
                                           DWORD registerFlags);
-    HRESULT WINAPI CfConnectSyncRootHook(LPCWSTR syncRootPath,
-                                         const void *callbackTable,
-                                         void *callbackContext,
-                                         DWORD connectFlags,
-                                         void *connectionKey);
-    HRESULT WINAPI CfCreatePlaceholdersHook(LPCWSTR baseDirectoryPath,
-                                            void *placeholderArray,
-                                            DWORD placeholderCount,
-                                            DWORD createFlags,
-                                            DWORD *entriesProcessed);
+    HRESULT WINAPI CfConnectSyncRootHook(LPCWSTR syncRootPath, const void *callbackTable, void *callbackContext,
+                                         DWORD connectFlags, void *connectionKey);
+    HRESULT WINAPI CfCreatePlaceholdersHook(LPCWSTR baseDirectoryPath, void *placeholderArray, DWORD placeholderCount,
+                                            DWORD createFlags, DWORD *entriesProcessed);
     HRESULT WINAPI AmsiInitializeHook(LPCWSTR appName, PVOID *amsiContext);
     VOID WINAPI AmsiUninitializeHook(PVOID amsiContext);
     HRESULT WINAPI AmsiOpenSessionHook(PVOID amsiContext, PVOID *session);
     VOID WINAPI AmsiCloseSessionHook(PVOID amsiContext, PVOID session);
-    HRESULT WINAPI
-    AmsiScanBufferHook(PVOID amsiContext, PVOID buffer, ULONG length, LPCWSTR contentName, PVOID session, PVOID result);
-    HRESULT WINAPI
-    AmsiScanStringHook(PVOID amsiContext, LPCWSTR string, LPCWSTR contentName, PVOID session, PVOID result);
-    HRESULT WINAPI
-    AmsiNotifyOperationHook(PVOID amsiContext, PVOID buffer, ULONG length, LPCWSTR contentName, PVOID result);
+    HRESULT WINAPI AmsiScanBufferHook(PVOID amsiContext, PVOID buffer, ULONG length, LPCWSTR contentName, PVOID session,
+                                      PVOID result);
+    HRESULT WINAPI AmsiScanStringHook(PVOID amsiContext, LPCWSTR string, LPCWSTR contentName, PVOID session,
+                                      PVOID result);
+    HRESULT WINAPI AmsiNotifyOperationHook(PVOID amsiContext, PVOID buffer, ULONG length, LPCWSTR contentName,
+                                           PVOID result);
     PVOID WINAPI WinHttpConnectHook(PVOID session, LPCWSTR serverName, INTERNET_PORT serverPort, DWORD reserved);
-    PVOID WINAPI WinHttpOpenRequestHook(PVOID connect,
-                                        LPCWSTR verb,
-                                        LPCWSTR objectName,
-                                        LPCWSTR version,
-                                        LPCWSTR referrer,
-                                        LPCWSTR *acceptTypes,
-                                        DWORD flags);
-    BOOL WINAPI WinHttpSendRequestHook(PVOID request,
-                                       LPCWSTR headers,
-                                       DWORD headersLength,
-                                       PVOID optional,
-                                       DWORD optionalLength,
-                                       DWORD totalLength,
-                                       DWORD_PTR context);
-    PVOID WINAPI InternetConnectWHook(PVOID internet,
-                                      LPCWSTR serverName,
-                                      INTERNET_PORT serverPort,
-                                      LPCWSTR userName,
-                                      LPCWSTR password,
-                                      DWORD service,
-                                      DWORD flags,
-                                      DWORD_PTR context);
-    PVOID WINAPI InternetConnectAHook(PVOID internet,
-                                      LPCSTR serverName,
-                                      INTERNET_PORT serverPort,
-                                      LPCSTR userName,
-                                      LPCSTR password,
-                                      DWORD service,
-                                      DWORD flags,
-                                      DWORD_PTR context);
-    PVOID WINAPI HttpOpenRequestWHook(PVOID connect,
-                                      LPCWSTR verb,
-                                      LPCWSTR objectName,
-                                      LPCWSTR version,
-                                      LPCWSTR referrer,
-                                      LPCWSTR *acceptTypes,
-                                      DWORD flags,
-                                      DWORD_PTR context);
-    PVOID WINAPI HttpOpenRequestAHook(PVOID connect,
-                                      LPCSTR verb,
-                                      LPCSTR objectName,
-                                      LPCSTR version,
-                                      LPCSTR referrer,
-                                      LPCSTR *acceptTypes,
-                                      DWORD flags,
-                                      DWORD_PTR context);
-    BOOL WINAPI
-    HttpSendRequestWHook(PVOID request, LPCWSTR headers, DWORD headersLength, PVOID optional, DWORD optionalLength);
-    BOOL WINAPI
-    HttpSendRequestAHook(PVOID request, LPCSTR headers, DWORD headersLength, PVOID optional, DWORD optionalLength);
+    PVOID WINAPI WinHttpOpenRequestHook(PVOID connect, LPCWSTR verb, LPCWSTR objectName, LPCWSTR version,
+                                        LPCWSTR referrer, LPCWSTR *acceptTypes, DWORD flags);
+    BOOL WINAPI WinHttpSendRequestHook(PVOID request, LPCWSTR headers, DWORD headersLength, PVOID optional,
+                                       DWORD optionalLength, DWORD totalLength, DWORD_PTR context);
+    PVOID WINAPI InternetConnectWHook(PVOID internet, LPCWSTR serverName, INTERNET_PORT serverPort, LPCWSTR userName,
+                                      LPCWSTR password, DWORD service, DWORD flags, DWORD_PTR context);
+    PVOID WINAPI InternetConnectAHook(PVOID internet, LPCSTR serverName, INTERNET_PORT serverPort, LPCSTR userName,
+                                      LPCSTR password, DWORD service, DWORD flags, DWORD_PTR context);
+    PVOID WINAPI HttpOpenRequestWHook(PVOID connect, LPCWSTR verb, LPCWSTR objectName, LPCWSTR version,
+                                      LPCWSTR referrer, LPCWSTR *acceptTypes, DWORD flags, DWORD_PTR context);
+    PVOID WINAPI HttpOpenRequestAHook(PVOID connect, LPCSTR verb, LPCSTR objectName, LPCSTR version, LPCSTR referrer,
+                                      LPCSTR *acceptTypes, DWORD flags, DWORD_PTR context);
+    BOOL WINAPI HttpSendRequestWHook(PVOID request, LPCWSTR headers, DWORD headersLength, PVOID optional,
+                                     DWORD optionalLength);
+    BOOL WINAPI HttpSendRequestAHook(PVOID request, LPCSTR headers, DWORD headersLength, PVOID optional,
+                                     DWORD optionalLength);
     LONG WINAPI EncryptMessageHook(PVOID context, ULONG qualityOfProtection, PVOID message, ULONG sequenceNumber);
     LONG WINAPI DecryptMessageHook(PVOID context, PVOID message, ULONG sequenceNumber, PULONG qualityOfProtection);
 
@@ -585,7 +436,7 @@ namespace IX_MODULE_INTERNAL
     {
         InlineHook *hook = FindHookByOriginalFunction(originalFunction);
         if (hook == nullptr || !hook->Installed || hook->TargetAddress == nullptr ||
-            hook->HookMethod != IXIPC_HOOK_METHOD_INLINE)
+            hook->HookMethod != SKUGGA_IPC_HOOK_METHOD_INLINE)
         {
             return fallback(args...);
         }
@@ -617,7 +468,7 @@ namespace IX_MODULE_INTERNAL
     {
         InlineHook *hook = FindHookByOriginalFunction(originalFunction);
         if (hook == nullptr || !hook->Installed || hook->TargetAddress == nullptr ||
-            hook->HookMethod != IXIPC_HOOK_METHOD_INLINE)
+            hook->HookMethod != SKUGGA_IPC_HOOK_METHOD_INLINE)
         {
             fallback(std::forward<Args>(args)...);
             return;
@@ -648,7 +499,7 @@ namespace IX_MODULE_INTERNAL
     template <typename Fn, typename... Args>
     auto CallOriginalSafely(Fn &originalFunction, Args... args) noexcept -> decltype(originalFunction(args...))
     {
-        return CallOriginalTemporarilyUnhooked(
-            reinterpret_cast<void **>(&originalFunction), originalFunction, std::forward<Args>(args)...);
+        return CallOriginalTemporarilyUnhooked(reinterpret_cast<void **>(&originalFunction), originalFunction,
+                                               std::forward<Args>(args)...);
     }
 } // namespace IX_MODULE_INTERNAL

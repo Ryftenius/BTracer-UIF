@@ -61,11 +61,8 @@ namespace IX_NT
         }
     }
 
-    static void SetNtHookInitFault(NtHookInitFaultCode code,
-                                   const char *functionName,
-                                   void *address,
-                                   void *redirectTarget = nullptr,
-                                   std::uint32_t syscallIndex = 0) noexcept
+    static void SetNtHookInitFault(NtHookInitFaultCode code, const char *functionName, void *address,
+                                   void *redirectTarget = nullptr, std::uint32_t syscallIndex = 0) noexcept
     {
         ResetNtHookInitFault();
         g_LastNtHookInitFault.Code = code;
@@ -110,120 +107,77 @@ namespace IX_NT
         HANDLE UniqueThread;
     } CLIENT_ID, *PCLIENT_ID;
 
-    using NtCreateThread_t = NTSTATUS(NTAPI *)(PHANDLE ThreadHandle,
-                                               ACCESS_MASK DesiredAccess,
-                                               POBJECT_ATTRIBUTES ObjectAttributes,
-                                               HANDLE ProcessHandle,
-                                               PCLIENT_ID ClientId,
-                                               PCONTEXT ThreadContext,
-                                               PIX_INITIAL_TEB InitialTeb,
+    using NtCreateThread_t = NTSTATUS(NTAPI *)(PHANDLE ThreadHandle, ACCESS_MASK DesiredAccess,
+                                               POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ProcessHandle,
+                                               PCLIENT_ID ClientId, PCONTEXT ThreadContext, PIX_INITIAL_TEB InitialTeb,
                                                BOOLEAN CreateSuspended);
 
-    using NtCreateThreadEx_t = NTSTATUS(NTAPI *)(PHANDLE ThreadHandle,
-                                                 ACCESS_MASK DesiredAccess,
-                                                 POBJECT_ATTRIBUTES ObjectAttributes,
-                                                 HANDLE ProcessHandle,
-                                                 PVOID StartRoutine,
-                                                 PVOID Argument,
-                                                 ULONG CreateFlags,
-                                                 SIZE_T ZeroBits,
-                                                 SIZE_T StackSize,
-                                                 SIZE_T MaximumStackSize,
-                                                 PVOID AttributeList);
+    using NtCreateThreadEx_t = NTSTATUS(NTAPI *)(PHANDLE ThreadHandle, ACCESS_MASK DesiredAccess,
+                                                 POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ProcessHandle,
+                                                 PVOID StartRoutine, PVOID Argument, ULONG CreateFlags, SIZE_T ZeroBits,
+                                                 SIZE_T StackSize, SIZE_T MaximumStackSize, PVOID AttributeList);
 
-    using NtWriteVirtualMemory_t = NTSTATUS(NTAPI *)(
-        HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, SIZE_T BufferSize, PSIZE_T NumberOfBytesWritten);
+    using NtWriteVirtualMemory_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer,
+                                                     SIZE_T BufferSize, PSIZE_T NumberOfBytesWritten);
 
-    using NtAllocateVirtualMemory_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle,
-                                                        PVOID *BaseAddress,
-                                                        ULONG_PTR ZeroBits,
-                                                        PSIZE_T RegionSize,
-                                                        ULONG AllocationType,
-                                                        ULONG Protect);
+    using NtAllocateVirtualMemory_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, PVOID *BaseAddress, ULONG_PTR ZeroBits,
+                                                        PSIZE_T RegionSize, ULONG AllocationType, ULONG Protect);
 
-    using NtProtectVirtualMemory_t = NTSTATUS(NTAPI *)(
-        HANDLE ProcessHandle, PVOID *BaseAddress, PSIZE_T RegionSize, ULONG NewProtect, PULONG OldProtect);
+    using NtProtectVirtualMemory_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, PVOID *BaseAddress, PSIZE_T RegionSize,
+                                                       ULONG NewProtect, PULONG OldProtect);
 
-    using NtReadVirtualMemory_t = NTSTATUS(NTAPI *)(
-        HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, SIZE_T BufferSize, PSIZE_T NumberOfBytesRead);
+    using NtReadVirtualMemory_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer,
+                                                    SIZE_T BufferSize, PSIZE_T NumberOfBytesRead);
 
-    using NtQueryVirtualMemory_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle,
-                                                     PVOID BaseAddress,
-                                                     ULONG MemoryInformationClass,
-                                                     PVOID MemoryInformation,
-                                                     SIZE_T MemoryInformationLength,
-                                                     PSIZE_T ReturnLength);
+    using NtQueryVirtualMemory_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, PVOID BaseAddress,
+                                                     ULONG MemoryInformationClass, PVOID MemoryInformation,
+                                                     SIZE_T MemoryInformationLength, PSIZE_T ReturnLength);
 
-    using NtQuerySystemInformation_t = NTSTATUS(NTAPI *)(ULONG SystemInformationClass,
-                                                         PVOID SystemInformation,
-                                                         ULONG SystemInformationLength,
-                                                         PULONG ReturnLength);
+    using NtQuerySystemInformation_t = NTSTATUS(NTAPI *)(ULONG SystemInformationClass, PVOID SystemInformation,
+                                                         ULONG SystemInformationLength, PULONG ReturnLength);
 
-    using NtCreateSection_t = NTSTATUS(NTAPI *)(PHANDLE SectionHandle,
-                                                ACCESS_MASK DesiredAccess,
-                                                POBJECT_ATTRIBUTES ObjectAttributes,
-                                                PLARGE_INTEGER MaximumSize,
-                                                ULONG SectionPageProtection,
-                                                ULONG AllocationAttributes,
+    using NtCreateSection_t = NTSTATUS(NTAPI *)(PHANDLE SectionHandle, ACCESS_MASK DesiredAccess,
+                                                POBJECT_ATTRIBUTES ObjectAttributes, PLARGE_INTEGER MaximumSize,
+                                                ULONG SectionPageProtection, ULONG AllocationAttributes,
                                                 HANDLE FileHandle);
 
     using NtTerminateProcess_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, NTSTATUS ExitStatus);
 
-    using NtOpenProcessToken_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle,
-                                                   ACCESS_MASK DesiredAccess,
+    using NtOpenProcessToken_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, ACCESS_MASK DesiredAccess,
                                                    PHANDLE TokenHandle);
 
-    using NtOpenThreadToken_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle,
-                                                  ACCESS_MASK DesiredAccess,
-                                                  BOOLEAN OpenAsSelf,
+    using NtOpenThreadToken_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, ACCESS_MASK DesiredAccess, BOOLEAN OpenAsSelf,
                                                   PHANDLE TokenHandle);
 
-    using NtOpenFile_t = NTSTATUS(NTAPI *)(PHANDLE FileHandle,
-                                           ACCESS_MASK DesiredAccess,
-                                           POBJECT_ATTRIBUTES ObjectAttributes,
-                                           PIO_STATUS_BLOCK IoStatusBlock,
-                                           ULONG ShareAccess,
-                                           ULONG OpenOptions);
+    using NtOpenFile_t = NTSTATUS(NTAPI *)(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
+                                           POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock,
+                                           ULONG ShareAccess, ULONG OpenOptions);
 
-    using NtQueryInformationProcess_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle,
-                                                          ULONG ProcessInformationClass,
-                                                          PVOID ProcessInformation,
-                                                          ULONG ProcessInformationLength,
+    using NtQueryInformationProcess_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, ULONG ProcessInformationClass,
+                                                          PVOID ProcessInformation, ULONG ProcessInformationLength,
                                                           PULONG ReturnLength);
 
-    using NtQueryInformationThread_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle,
-                                                         ULONG ThreadInformationClass,
-                                                         PVOID ThreadInformation,
-                                                         ULONG ThreadInformationLength,
+    using NtQueryInformationThread_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, ULONG ThreadInformationClass,
+                                                         PVOID ThreadInformation, ULONG ThreadInformationLength,
                                                          PULONG ReturnLength);
 
     using NtSetContextThread_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, PCONTEXT ThreadContext);
 
-    using NtQuerySection_t = NTSTATUS(NTAPI *)(HANDLE SectionHandle,
-                                               ULONG SectionInformationClass,
-                                               PVOID InformationBuffer,
-                                               ULONG InformationBufferSize,
+    using NtQuerySection_t = NTSTATUS(NTAPI *)(HANDLE SectionHandle, ULONG SectionInformationClass,
+                                               PVOID InformationBuffer, ULONG InformationBufferSize,
                                                PULONG ResultLength);
 
     using NtQueryBootOptions_t = NTSTATUS(NTAPI *)(PVOID BootOptions, PULONG BootOptionsLength);
 
-    using NtOpenProcess_t = NTSTATUS(NTAPI *)(PHANDLE ProcessHandle,
-                                              ACCESS_MASK DesiredAccess,
-                                              POBJECT_ATTRIBUTES ObjectAttributes,
-                                              PCLIENT_ID ClientId);
+    using NtOpenProcess_t = NTSTATUS(NTAPI *)(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess,
+                                              POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId);
 
-    using NtOpenThread_t = NTSTATUS(NTAPI *)(PHANDLE ThreadHandle,
-                                             ACCESS_MASK DesiredAccess,
-                                             POBJECT_ATTRIBUTES ObjectAttributes,
-                                             PCLIENT_ID ClientId);
+    using NtOpenThread_t = NTSTATUS(NTAPI *)(PHANDLE ThreadHandle, ACCESS_MASK DesiredAccess,
+                                             POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId);
 
-    using NtDuplicateObject_t = NTSTATUS(NTAPI *)(HANDLE SourceProcessHandle,
-                                                  HANDLE SourceHandle,
-                                                  HANDLE TargetProcessHandle,
-                                                  PHANDLE TargetHandle,
-                                                  ACCESS_MASK DesiredAccess,
-                                                  ULONG Attributes,
-                                                  ULONG Options);
+    using NtDuplicateObject_t = NTSTATUS(NTAPI *)(HANDLE SourceProcessHandle, HANDLE SourceHandle,
+                                                  HANDLE TargetProcessHandle, PHANDLE TargetHandle,
+                                                  ACCESS_MASK DesiredAccess, ULONG Attributes, ULONG Options);
 
     using NtGetContextThread_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, PCONTEXT ThreadContext);
 
@@ -231,74 +185,43 @@ namespace IX_NT
 
     using NtResumeThread_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, PULONG PreviousSuspendCount);
 
-    using NtQueueApcThread_t = NTSTATUS(NTAPI *)(
-        HANDLE ThreadHandle, PVOID ApcRoutine, PVOID ApcArgument1, PVOID ApcArgument2, PVOID ApcArgument3);
+    using NtQueueApcThread_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, PVOID ApcRoutine, PVOID ApcArgument1,
+                                                 PVOID ApcArgument2, PVOID ApcArgument3);
 
-    using NtAllocateVirtualMemoryEx_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle,
-                                                          PVOID *BaseAddress,
-                                                          PSIZE_T RegionSize,
-                                                          ULONG AllocationType,
-                                                          ULONG PageProtection,
-                                                          PVOID ExtendedParameters,
-                                                          ULONG ExtendedParameterCount);
+    using NtAllocateVirtualMemoryEx_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, PVOID *BaseAddress, PSIZE_T RegionSize,
+                                                          ULONG AllocationType, ULONG PageProtection,
+                                                          PVOID ExtendedParameters, ULONG ExtendedParameterCount);
 
-    using NtMapViewOfSection_t = NTSTATUS(NTAPI *)(HANDLE SectionHandle,
-                                                   HANDLE ProcessHandle,
-                                                   PVOID *BaseAddress,
-                                                   ULONG_PTR ZeroBits,
-                                                   SIZE_T CommitSize,
-                                                   PLARGE_INTEGER SectionOffset,
-                                                   PSIZE_T ViewSize,
-                                                   ULONG InheritDisposition,
-                                                   ULONG AllocationType,
+    using NtMapViewOfSection_t = NTSTATUS(NTAPI *)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID *BaseAddress,
+                                                   ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset,
+                                                   PSIZE_T ViewSize, ULONG InheritDisposition, ULONG AllocationType,
                                                    ULONG Win32Protect);
 
-    using NtMapViewOfSectionEx_t = NTSTATUS(NTAPI *)(HANDLE SectionHandle,
-                                                     HANDLE ProcessHandle,
-                                                     PVOID *BaseAddress,
-                                                     PLARGE_INTEGER SectionOffset,
-                                                     PSIZE_T ViewSize,
-                                                     ULONG AllocationType,
-                                                     ULONG Win32Protect,
-                                                     PVOID ExtendedParameters,
+    using NtMapViewOfSectionEx_t = NTSTATUS(NTAPI *)(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID *BaseAddress,
+                                                     PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize,
+                                                     ULONG AllocationType, ULONG Win32Protect, PVOID ExtendedParameters,
                                                      ULONG ExtendedParameterCount);
 
     using NtUnmapViewOfSection_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, PVOID BaseAddress);
 
     using NtUnmapViewOfSectionEx_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, PVOID BaseAddress, ULONG Flags);
 
-    using NtQueueApcThreadEx_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle,
-                                                   HANDLE UserApcReserveHandle,
-                                                   PVOID ApcRoutine,
-                                                   PVOID ApcArgument1,
-                                                   PVOID ApcArgument2,
-                                                   PVOID ApcArgument3);
+    using NtQueueApcThreadEx_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, HANDLE UserApcReserveHandle, PVOID ApcRoutine,
+                                                   PVOID ApcArgument1, PVOID ApcArgument2, PVOID ApcArgument3);
 
-    using NtQueueApcThreadEx2_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle,
-                                                    HANDLE UserApcReserveHandle,
-                                                    ULONG QueueUserApcFlags,
-                                                    PVOID ApcRoutine,
-                                                    PVOID ApcArgument1,
-                                                    PVOID ApcArgument2,
-                                                    PVOID ApcArgument3);
+    using NtQueueApcThreadEx2_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, HANDLE UserApcReserveHandle,
+                                                    ULONG QueueUserApcFlags, PVOID ApcRoutine, PVOID ApcArgument1,
+                                                    PVOID ApcArgument2, PVOID ApcArgument3);
 
-    using NtOpenProcessTokenEx_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle,
-                                                     ACCESS_MASK DesiredAccess,
-                                                     ULONG HandleAttributes,
-                                                     PHANDLE TokenHandle);
+    using NtOpenProcessTokenEx_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, ACCESS_MASK DesiredAccess,
+                                                     ULONG HandleAttributes, PHANDLE TokenHandle);
 
-    using NtOpenThreadTokenEx_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle,
-                                                    ACCESS_MASK DesiredAccess,
-                                                    BOOLEAN OpenAsSelf,
-                                                    ULONG HandleAttributes,
-                                                    PHANDLE TokenHandle);
+    using NtOpenThreadTokenEx_t = NTSTATUS(NTAPI *)(HANDLE ThreadHandle, ACCESS_MASK DesiredAccess, BOOLEAN OpenAsSelf,
+                                                    ULONG HandleAttributes, PHANDLE TokenHandle);
 
-    using NtQuerySystemInformationEx_t = NTSTATUS(NTAPI *)(ULONG SystemInformationClass,
-                                                           PVOID InputBuffer,
-                                                           ULONG InputBufferLength,
-                                                           PVOID SystemInformation,
-                                                           ULONG SystemInformationLength,
-                                                           PULONG ReturnLength);
+    using NtQuerySystemInformationEx_t = NTSTATUS(NTAPI *)(ULONG SystemInformationClass, PVOID InputBuffer,
+                                                           ULONG InputBufferLength, PVOID SystemInformation,
+                                                           ULONG SystemInformationLength, PULONG ReturnLength);
 
     static std::uint64_t PointerCodecCookie() noexcept
     {
@@ -488,12 +411,8 @@ namespace IX_NT
     static EncodedProc<NtOpenThreadTokenEx_t> g_NtOpenThreadTokenExStub;
     static EncodedProc<NtQuerySystemInformationEx_t> g_NtQuerySystemInformationExStub;
 
-    using NtGetNextThread_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle,
-                                                HANDLE ThreadHandle,
-                                                ACCESS_MASK DesiredAccess,
-                                                ULONG HandleAttributes,
-                                                ULONG Flags,
-                                                PHANDLE NewThreadHandle);
+    using NtGetNextThread_t = NTSTATUS(NTAPI *)(HANDLE ProcessHandle, HANDLE ThreadHandle, ACCESS_MASK DesiredAccess,
+                                                ULONG HandleAttributes, ULONG Flags, PHANDLE NewThreadHandle);
     static EncodedProc<NtGetNextThread_t> g_NtGetNextThreadStub;
 
     // Minimal THREAD_BASIC_INFORMATION — only fields needed to extract the TID.
@@ -550,7 +469,7 @@ namespace IX_NT
         std::uint32_t SyscallIndex;
         std::uint8_t OriginalBytes[16];
         bool Installed;
-        std::uint32_t HookMethod = IXIPC_HOOK_METHOD_INLINE;
+        std::uint32_t HookMethod = SKUGGA_IPC_HOOK_METHOD_INLINE;
     };
 
     static NtHookCallback g_ActiveNtCallback = nullptr;
@@ -626,10 +545,8 @@ namespace IX_NT
         return ResolveNtHookToken(hook.SyscallStubToken, IX_RUNTIME_INTERNAL::IxIhrType::NtSyscallStub);
     }
 
-    static IX_RUNTIME_INTERNAL::IxIhrToken RegisterNtHookPointer(void *pointer,
-                                                                 IX_RUNTIME_INTERNAL::IxIhrType type,
-                                                                 const char *tag,
-                                                                 std::uint32_t flags = 0) noexcept
+    static IX_RUNTIME_INTERNAL::IxIhrToken RegisterNtHookPointer(void *pointer, IX_RUNTIME_INTERNAL::IxIhrType type,
+                                                                 const char *tag, std::uint32_t flags = 0) noexcept
     {
         return IX_RUNTIME_INTERNAL::RegisterIndirectHandle(pointer, 16u, type, flags, tag);
     }
@@ -800,14 +717,11 @@ namespace IX_NT
         if (!memory)
         {
             IxDbgLog("BuildSyscallStub: VirtualAlloc failed protect=0x%08lX gle=%lu",
-                     static_cast<unsigned long>(allocProtect),
-                     static_cast<unsigned long>(GetLastError()));
+                     static_cast<unsigned long>(allocProtect), static_cast<unsigned long>(GetLastError()));
             return nullptr;
         }
-        IxDbgLog("BuildSyscallStub: allocated memory=%p protect=0x%08lX cfgRequired=%u",
-                 memory,
-                 static_cast<unsigned long>(allocProtect),
-                 cfgRegistrationRequired ? 1u : 0u);
+        IxDbgLog("BuildSyscallStub: allocated memory=%p protect=0x%08lX cfgRequired=%u", memory,
+                 static_cast<unsigned long>(allocProtect), cfgRegistrationRequired ? 1u : 0u);
 
         auto *code = static_cast<std::uint8_t *>(memory);
 #if defined(_WIN64)
@@ -873,19 +787,15 @@ namespace IX_NT
             cfgRegistrationRequired ? (PAGE_EXECUTE_READ | PAGE_TARGETS_NO_UPDATE) : PAGE_EXECUTE_READ;
         if (!VirtualProtect(memory, StubSize, finalProtect, &oldProtect))
         {
-            IxDbgLog("BuildSyscallStub: VirtualProtect failed memory=%p protect=0x%08lX gle=%lu",
-                     memory,
-                     static_cast<unsigned long>(finalProtect),
-                     static_cast<unsigned long>(GetLastError()));
+            IxDbgLog("BuildSyscallStub: VirtualProtect failed memory=%p protect=0x%08lX gle=%lu", memory,
+                     static_cast<unsigned long>(finalProtect), static_cast<unsigned long>(GetLastError()));
             VirtualFree(memory, 0, MEM_RELEASE);
             return nullptr;
         }
 
         FlushInstructionCache(GetCurrentProcess(), memory, StubSize);
-        IxDbgLog("BuildSyscallStub: protected memory=%p protect=0x%08lX oldProtect=0x%08lX",
-                 memory,
-                 static_cast<unsigned long>(finalProtect),
-                 static_cast<unsigned long>(oldProtect));
+        IxDbgLog("BuildSyscallStub: protected memory=%p protect=0x%08lX oldProtect=0x%08lX", memory,
+                 static_cast<unsigned long>(finalProtect), static_cast<unsigned long>(oldProtect));
         if (cfgRegistrationRequired && !IX_RUNTIME_INTERNAL::RegisterControlFlowGuardCallTarget(
                                            memory, IX_RUNTIME_INTERNAL::IxCfgCallTargetMode::CfgOnly, "rt.nt.stub"))
         {
@@ -1008,15 +918,12 @@ namespace IX_NT
 
     static SIZE_T NtRuntimePageSize() noexcept
     {
-        static SIZE_T pageSize = 0;
-        if (pageSize != 0)
+        static const SIZE_T pageSize = []() noexcept
         {
-            return pageSize;
-        }
-
-        SYSTEM_INFO info{};
-        GetSystemInfo(&info);
-        pageSize = info.dwPageSize != 0 ? info.dwPageSize : 0x1000u;
+            SYSTEM_INFO info{};
+            GetSystemInfo(&info);
+            return static_cast<SIZE_T>(info.dwPageSize != 0 ? info.dwPageSize : 0x1000u);
+        }();
         return pageSize;
     }
 
@@ -1037,12 +944,14 @@ namespace IX_NT
                baseProtect != 0 && baseProtect != PAGE_NOACCESS;
     }
 
-    static void TryObserveDirectSyscallRange(HANDLE processHandle,
-                                             void *baseAddress,
-                                             SIZE_T regionSize,
-                                             void *caller,
-                                             const char *sourceApi,
-                                             NtHookContext *ctx) noexcept
+    static SIZE_T QueryInstrumentationRegion(void *address, MEMORY_BASIC_INFORMATION &mbi) noexcept
+    {
+        IX_INTERNAL_SCOPE();
+        return VirtualQuery(address, &mbi, sizeof(mbi));
+    }
+
+    static void TryObserveDirectSyscallRange(HANDLE processHandle, void *baseAddress, SIZE_T regionSize, void *caller,
+                                             const char *sourceApi, NtHookContext *ctx) noexcept
     {
         if (::IxIsInternalCall() || !IsCurrentProcessHandle(processHandle) || baseAddress == nullptr || regionSize == 0)
         {
@@ -1050,6 +959,11 @@ namespace IX_NT
         }
 
         SIZE_T pageSize = NtRuntimePageSize();
+        const auto address = reinterpret_cast<std::uintptr_t>(baseAddress);
+        if (regionSize > UINTPTR_MAX - address || address + regionSize > UINTPTR_MAX - (pageSize - 1))
+        {
+            return;
+        }
         std::uintptr_t start = NtAlignDown(reinterpret_cast<std::uintptr_t>(baseAddress), pageSize);
         std::uintptr_t end = NtAlignUp(
             reinterpret_cast<std::uintptr_t>(baseAddress) + static_cast<std::uintptr_t>(regionSize), pageSize);
@@ -1059,12 +973,23 @@ namespace IX_NT
         }
 
         constexpr SIZE_T kMaxScanBytes = 64 * 1024;
+        // Bound address coverage as well as work; skipping inaccessible regions
+        // must never turn this into an unbounded address-space walk.
+        end = start + std::min<std::uintptr_t>(end - start, kMaxScanBytes);
         SIZE_T scanned = 0;
         for (std::uintptr_t page = start; page < end && scanned < kMaxScanBytes; page += pageSize)
         {
             MEMORY_BASIC_INFORMATION mbi{};
-            if (VirtualQuery(reinterpret_cast<void *>(page), &mbi, sizeof(mbi)) == 0 || !IsReadableCommittedPage(mbi))
+            const SIZE_T queried = QueryInstrumentationRegion(reinterpret_cast<void *>(page), mbi);
+            if (queried == 0 || !IsReadableCommittedPage(mbi))
             {
+                const auto regionBase = reinterpret_cast<std::uintptr_t>(mbi.BaseAddress);
+                if (queried != 0 && mbi.RegionSize <= UINTPTR_MAX - regionBase)
+                {
+                    const auto next = std::min<std::uintptr_t>(end, regionBase + mbi.RegionSize);
+                    if (next > page && next - page >= pageSize)
+                        page = next - pageSize;
+                }
                 scanned += pageSize;
                 continue;
             }
@@ -1110,21 +1035,14 @@ namespace IX_NT
                 }
             }
 
-            (void)IX_RUNTIME_INTERNAL::RegisterDirectSyscallPage(reinterpret_cast<void *>(page),
-                                                                 pageSize,
-                                                                 stub,
-                                                                 match.SyscallNumber,
-                                                                 caller,
-                                                                 sample,
-                                                                 static_cast<std::uint32_t>(readable),
-                                                                 sourceApi);
+            (void)IX_RUNTIME_INTERNAL::RegisterDirectSyscallPage(reinterpret_cast<void *>(page), pageSize, stub,
+                                                                 match.SyscallNumber, caller, sample,
+                                                                 static_cast<std::uint32_t>(readable), sourceApi);
             return;
         }
     }
 
-    static void TryAnnotateProtectTarget(HANDLE processHandle,
-                                         PVOID *baseAddress,
-                                         PSIZE_T regionSize,
+    static void TryAnnotateProtectTarget(HANDLE processHandle, PVOID *baseAddress, PSIZE_T regionSize,
                                          NtHookContext &ctx) noexcept
     {
         std::uint64_t baseValue = 0;
@@ -1150,16 +1068,11 @@ namespace IX_NT
             return;
         }
 
-        TryObserveDirectSyscallRange(processHandle,
-                                     reinterpret_cast<void *>(baseValue),
-                                     static_cast<SIZE_T>(sizeValue),
-                                     ctx.Caller,
-                                     ctx.FunctionName,
-                                     &ctx);
+        TryObserveDirectSyscallRange(processHandle, reinterpret_cast<void *>(baseValue), static_cast<SIZE_T>(sizeValue),
+                                     ctx.Caller, ctx.FunctionName, &ctx);
     }
 
-    static inline bool EvaluateNtPolicyPreCall(const char *functionName,
-                                               void *caller,
+    static inline bool EvaluateNtPolicyPreCall(const char *functionName, void *caller,
                                                IX_RUNTIME_INTERNAL::IxNtHookPolicyDecision &policy,
                                                NTSTATUS &status) noexcept
     {
@@ -1173,7 +1086,7 @@ namespace IX_NT
             return false;
         }
 
-        if (policy.Action == IXIPC_HOOK_ACTION_DENY || policy.Action == IXIPC_HOOK_ACTION_SILENT_DENY)
+        if (policy.Action == SKUGGA_IPC_HOOK_ACTION_DENY || policy.Action == SKUGGA_IPC_HOOK_ACTION_SILENT_DENY)
         {
             status = policy.Status;
             return true;
@@ -1181,10 +1094,8 @@ namespace IX_NT
         return false;
     }
 
-    static inline void CaptureNtRegisterSnapshot(NtRegisterSnapshot &snapshot,
-                                                 void *caller,
-                                                 const std::uint64_t args[8],
-                                                 NTSTATUS status) noexcept
+    static inline void CaptureNtRegisterSnapshot(NtRegisterSnapshot &snapshot, void *caller,
+                                                 const std::uint64_t args[8], NTSTATUS status) noexcept
     {
         CONTEXT context{};
         RtlCaptureContext(&context);
@@ -1229,8 +1140,7 @@ namespace IX_NT
         snapshot.EFlags = context.EFlags;
     }
 
-    static inline void PublishNtEvent(NtHookContext &ctx,
-                                      NTSTATUS status,
+    static inline void PublishNtEvent(NtHookContext &ctx, NTSTATUS status,
                                       const IX_RUNTIME_INTERNAL::IxNtHookPolicyDecision &policy,
                                       bool successfulOnly) noexcept
     {
@@ -1241,7 +1151,7 @@ namespace IX_NT
 
         if (policy.Matched)
         {
-            if (policy.Ignored || (!policy.Log && policy.Action == IXIPC_HOOK_ACTION_NONE))
+            if (policy.Ignored || (!policy.Log && policy.Action == SKUGGA_IPC_HOOK_ACTION_NONE))
             {
                 return;
             }
@@ -1252,27 +1162,27 @@ namespace IX_NT
         }
 
         ctx.Status = status;
-        ctx.PolicyAction = policy.Matched && !policy.Ignored ? policy.Action : IXIPC_HOOK_ACTION_NONE;
+        ctx.PolicyAction = policy.Matched && !policy.Ignored ? policy.Action : SKUGGA_IPC_HOOK_ACTION_NONE;
         ctx.PolicyFlags = 0;
         if (policy.Matched && !policy.Ignored)
         {
             if (policy.Log)
             {
-                ctx.PolicyFlags |= IXIPC_HOOK_RULE_FLAG_LOG;
+                ctx.PolicyFlags |= SKUGGA_IPC_HOOK_RULE_FLAG_LOG;
             }
             if (policy.StackTrace)
             {
-                ctx.PolicyFlags |= IXIPC_HOOK_RULE_FLAG_STACK_TRACE;
+                ctx.PolicyFlags |= SKUGGA_IPC_HOOK_RULE_FLAG_STACK_TRACE;
             }
             if (policy.Registers)
             {
-                ctx.PolicyFlags |= IXIPC_HOOK_RULE_FLAG_REGISTERS;
+                ctx.PolicyFlags |= SKUGGA_IPC_HOOK_RULE_FLAG_REGISTERS;
                 CaptureNtRegisterSnapshot(ctx.Registers, ctx.Caller, ctx.Args, status);
                 ctx.HasRegisters = ctx.Registers.Valid != 0;
             }
             if (policy.StackFabricate)
             {
-                ctx.PolicyFlags |= IXIPC_HOOK_RULE_FLAG_STACK_FABRICATE;
+                ctx.PolicyFlags |= SKUGGA_IPC_HOOK_RULE_FLAG_STACK_FABRICATE;
             }
         }
 
@@ -1295,16 +1205,14 @@ namespace IX_NT
         IxLeaveInternalCall();
     }
 
-    static inline void PublishNtEventIfSuccessful(NtHookContext &ctx,
-                                                  NTSTATUS status,
+    static inline void PublishNtEventIfSuccessful(NtHookContext &ctx, NTSTATUS status,
                                                   const IX_RUNTIME_INTERNAL::IxNtHookPolicyDecision &policy =
                                                       IX_RUNTIME_INTERNAL::IxNtHookPolicyDecision{}) noexcept
     {
         PublishNtEvent(ctx, status, policy, true);
     }
 
-    static inline void PublishNtEventAlways(NtHookContext &ctx,
-                                            NTSTATUS status,
+    static inline void PublishNtEventAlways(NtHookContext &ctx, NTSTATUS status,
                                             const IX_RUNTIME_INTERNAL::IxNtHookPolicyDecision &policy =
                                                 IX_RUNTIME_INTERNAL::IxNtHookPolicyDecision{}) noexcept
     {
@@ -1394,9 +1302,7 @@ namespace IX_NT
         }
     }
 
-    static bool TryReadContextArgument(PCONTEXT value,
-                                       std::uint64_t &instructionPointer,
-                                       std::uint64_t &stackPointer,
+    static bool TryReadContextArgument(PCONTEXT value, std::uint64_t &instructionPointer, std::uint64_t &stackPointer,
                                        std::uint64_t &contextFlags) noexcept
     {
         instructionPointer = 0;
@@ -1448,14 +1354,9 @@ namespace IX_NT
         }
     }
 
-    NTSTATUS NTAPI NtCreateThread_Hook(PHANDLE ThreadHandle,
-                                       ACCESS_MASK DesiredAccess,
-                                       POBJECT_ATTRIBUTES ObjectAttributes,
-                                       HANDLE ProcessHandle,
-                                       PCLIENT_ID ClientId,
-                                       PCONTEXT ThreadContext,
-                                       PIX_INITIAL_TEB InitialTeb,
-                                       BOOLEAN CreateSuspended)
+    NTSTATUS NTAPI NtCreateThread_Hook(PHANDLE ThreadHandle, ACCESS_MASK DesiredAccess,
+                                       POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ProcessHandle, PCLIENT_ID ClientId,
+                                       PCONTEXT ThreadContext, PIX_INITIAL_TEB InitialTeb, BOOLEAN CreateSuspended)
     {
         if (!g_NtCreateThreadStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1465,14 +1366,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtCreateThread", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtCreateThreadStub(ThreadHandle,
-                                          DesiredAccess,
-                                          ObjectAttributes,
-                                          ProcessHandle,
-                                          ClientId,
-                                          ThreadContext,
-                                          InitialTeb,
-                                          CreateSuspended);
+            status = g_NtCreateThreadStub(ThreadHandle, DesiredAccess, ObjectAttributes, ProcessHandle, ClientId,
+                                          ThreadContext, InitialTeb, CreateSuspended);
         }
         if (g_ActiveNtCallback)
         {
@@ -1493,17 +1388,10 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtCreateThreadEx_Hook(PHANDLE ThreadHandle,
-                                         ACCESS_MASK DesiredAccess,
-                                         POBJECT_ATTRIBUTES ObjectAttributes,
-                                         HANDLE ProcessHandle,
-                                         PVOID StartRoutine,
-                                         PVOID Argument,
-                                         ULONG CreateFlags,
-                                         SIZE_T ZeroBits,
-                                         SIZE_T StackSize,
-                                         SIZE_T MaximumStackSize,
-                                         PVOID AttributeList)
+    NTSTATUS NTAPI NtCreateThreadEx_Hook(PHANDLE ThreadHandle, ACCESS_MASK DesiredAccess,
+                                         POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ProcessHandle, PVOID StartRoutine,
+                                         PVOID Argument, ULONG CreateFlags, SIZE_T ZeroBits, SIZE_T StackSize,
+                                         SIZE_T MaximumStackSize, PVOID AttributeList)
     {
         if (!g_NtCreateThreadExStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1513,17 +1401,9 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtCreateThreadEx", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtCreateThreadExStub(ThreadHandle,
-                                            DesiredAccess,
-                                            ObjectAttributes,
-                                            ProcessHandle,
-                                            StartRoutine,
-                                            Argument,
-                                            CreateFlags,
-                                            ZeroBits,
-                                            StackSize,
-                                            MaximumStackSize,
-                                            AttributeList);
+            status =
+                g_NtCreateThreadExStub(ThreadHandle, DesiredAccess, ObjectAttributes, ProcessHandle, StartRoutine,
+                                       Argument, CreateFlags, ZeroBits, StackSize, MaximumStackSize, AttributeList);
         }
         if (g_ActiveNtCallback)
         {
@@ -1545,8 +1425,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtWriteVirtualMemory_Hook(
-        HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, SIZE_T BufferSize, PSIZE_T NumberOfBytesWritten)
+    NTSTATUS NTAPI NtWriteVirtualMemory_Hook(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, SIZE_T BufferSize,
+                                             PSIZE_T NumberOfBytesWritten)
     {
         if (!g_NtWriteVirtualMemoryStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1593,12 +1473,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtAllocateVirtualMemory_Hook(HANDLE ProcessHandle,
-                                                PVOID *BaseAddress,
-                                                ULONG_PTR ZeroBits,
-                                                PSIZE_T RegionSize,
-                                                ULONG AllocationType,
-                                                ULONG Protect)
+    NTSTATUS NTAPI NtAllocateVirtualMemory_Hook(HANDLE ProcessHandle, PVOID *BaseAddress, ULONG_PTR ZeroBits,
+                                                PSIZE_T RegionSize, ULONG AllocationType, ULONG Protect)
     {
         if (!g_NtAllocateVirtualMemoryStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1608,8 +1484,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtAllocateVirtualMemory", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtAllocateVirtualMemoryStub(
-                ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect);
+            status = g_NtAllocateVirtualMemoryStub(ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType,
+                                                   Protect);
         }
         if (g_ActiveNtCallback)
         {
@@ -1628,20 +1504,16 @@ namespace IX_NT
             (void)TryReadSizeArgument(RegionSize, ctx.Args[3]);
             if (NT_SUCCESS(status) && ctx.Args[1] != 0 && ctx.Args[3] != 0)
             {
-                TryObserveDirectSyscallRange(ProcessHandle,
-                                             reinterpret_cast<void *>(ctx.Args[1]),
-                                             static_cast<SIZE_T>(ctx.Args[3]),
-                                             caller,
-                                             ctx.FunctionName,
-                                             &ctx);
+                TryObserveDirectSyscallRange(ProcessHandle, reinterpret_cast<void *>(ctx.Args[1]),
+                                             static_cast<SIZE_T>(ctx.Args[3]), caller, ctx.FunctionName, &ctx);
             }
             PublishNtEventIfSuccessful(ctx, status, policy);
         }
         return status;
     }
 
-    NTSTATUS NTAPI NtProtectVirtualMemory_Hook(
-        HANDLE ProcessHandle, PVOID *BaseAddress, PSIZE_T RegionSize, ULONG NewProtect, PULONG OldProtect)
+    NTSTATUS NTAPI NtProtectVirtualMemory_Hook(HANDLE ProcessHandle, PVOID *BaseAddress, PSIZE_T RegionSize,
+                                               ULONG NewProtect, PULONG OldProtect)
     {
         if (!g_NtProtectVirtualMemoryStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1657,7 +1529,7 @@ namespace IX_NT
         {
             return status;
         }
-        if (policy.Matched && !policy.Log && policy.Action == IXIPC_HOOK_ACTION_NONE)
+        if (policy.Matched && !policy.Log && policy.Action == SKUGGA_IPC_HOOK_ACTION_NONE)
         {
             return status;
         }
@@ -1682,8 +1554,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtReadVirtualMemory_Hook(
-        HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, SIZE_T BufferSize, PSIZE_T NumberOfBytesRead)
+    NTSTATUS NTAPI NtReadVirtualMemory_Hook(HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, SIZE_T BufferSize,
+                                            PSIZE_T NumberOfBytesRead)
     {
         if (!g_NtReadVirtualMemoryStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1742,11 +1614,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQueryVirtualMemory_Hook(HANDLE ProcessHandle,
-                                             PVOID BaseAddress,
-                                             ULONG MemoryInformationClass,
-                                             PVOID MemoryInformation,
-                                             SIZE_T MemoryInformationLength,
+    NTSTATUS NTAPI NtQueryVirtualMemory_Hook(HANDLE ProcessHandle, PVOID BaseAddress, ULONG MemoryInformationClass,
+                                             PVOID MemoryInformation, SIZE_T MemoryInformationLength,
                                              PSIZE_T ReturnLength)
     {
         if (!g_NtQueryVirtualMemoryStub)
@@ -1757,12 +1626,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtQueryVirtualMemory", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtQueryVirtualMemoryStub(ProcessHandle,
-                                                BaseAddress,
-                                                MemoryInformationClass,
-                                                MemoryInformation,
-                                                MemoryInformationLength,
-                                                ReturnLength);
+            status = g_NtQueryVirtualMemoryStub(ProcessHandle, BaseAddress, MemoryInformationClass, MemoryInformation,
+                                                MemoryInformationLength, ReturnLength);
         }
         if (g_ActiveNtCallback)
         {
@@ -1782,10 +1647,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQuerySystemInformation_Hook(ULONG SystemInformationClass,
-                                                 PVOID SystemInformation,
-                                                 ULONG SystemInformationLength,
-                                                 PULONG ReturnLength)
+    NTSTATUS NTAPI NtQuerySystemInformation_Hook(ULONG SystemInformationClass, PVOID SystemInformation,
+                                                 ULONG SystemInformationLength, PULONG ReturnLength)
     {
         if (!g_NtQuerySystemInformationStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1795,8 +1658,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtQuerySystemInformation", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtQuerySystemInformationStub(
-                SystemInformationClass, SystemInformation, SystemInformationLength, ReturnLength);
+            status = g_NtQuerySystemInformationStub(SystemInformationClass, SystemInformation, SystemInformationLength,
+                                                    ReturnLength);
         }
         if (g_ActiveNtCallback)
         {
@@ -1813,12 +1676,9 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQuerySystemInformationEx_Hook(ULONG SystemInformationClass,
-                                                   PVOID InputBuffer,
-                                                   ULONG InputBufferLength,
-                                                   PVOID SystemInformation,
-                                                   ULONG SystemInformationLength,
-                                                   PULONG ReturnLength)
+    NTSTATUS NTAPI NtQuerySystemInformationEx_Hook(ULONG SystemInformationClass, PVOID InputBuffer,
+                                                   ULONG InputBufferLength, PVOID SystemInformation,
+                                                   ULONG SystemInformationLength, PULONG ReturnLength)
     {
         if (!g_NtQuerySystemInformationExStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1828,12 +1688,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtQuerySystemInformationEx", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtQuerySystemInformationExStub(SystemInformationClass,
-                                                      InputBuffer,
-                                                      InputBufferLength,
-                                                      SystemInformation,
-                                                      SystemInformationLength,
-                                                      ReturnLength);
+            status = g_NtQuerySystemInformationExStub(SystemInformationClass, InputBuffer, InputBufferLength,
+                                                      SystemInformation, SystemInformationLength, ReturnLength);
         }
         if (g_ActiveNtCallback)
         {
@@ -1852,12 +1708,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtGetNextThread_Hook(HANDLE ProcessHandle,
-                                        HANDLE ThreadHandle,
-                                        ACCESS_MASK DesiredAccess,
-                                        ULONG HandleAttributes,
-                                        ULONG Flags,
-                                        PHANDLE NewThreadHandle)
+    NTSTATUS NTAPI NtGetNextThread_Hook(HANDLE ProcessHandle, HANDLE ThreadHandle, ACCESS_MASK DesiredAccess,
+                                        ULONG HandleAttributes, ULONG Flags, PHANDLE NewThreadHandle)
     {
         if (!g_NtGetNextThreadStub || !NewThreadHandle)
             return STATUS_NOT_IMPLEMENTED;
@@ -1868,8 +1720,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtGetNextThread", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtGetNextThreadStub(
-                ProcessHandle, ThreadHandle, DesiredAccess, HandleAttributes, Flags, NewThreadHandle);
+            status = g_NtGetNextThreadStub(ProcessHandle, ThreadHandle, DesiredAccess, HandleAttributes, Flags,
+                                           NewThreadHandle);
         }
         if (g_ActiveNtCallback)
         {
@@ -1886,13 +1738,9 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtCreateSection_Hook(PHANDLE SectionHandle,
-                                        ACCESS_MASK DesiredAccess,
-                                        POBJECT_ATTRIBUTES ObjectAttributes,
-                                        PLARGE_INTEGER MaximumSize,
-                                        ULONG SectionPageProtection,
-                                        ULONG AllocationAttributes,
-                                        HANDLE FileHandle)
+    NTSTATUS NTAPI NtCreateSection_Hook(PHANDLE SectionHandle, ACCESS_MASK DesiredAccess,
+                                        POBJECT_ATTRIBUTES ObjectAttributes, PLARGE_INTEGER MaximumSize,
+                                        ULONG SectionPageProtection, ULONG AllocationAttributes, HANDLE FileHandle)
     {
         if (!g_NtCreateSectionStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -1902,13 +1750,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtCreateSection", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtCreateSectionStub(SectionHandle,
-                                           DesiredAccess,
-                                           ObjectAttributes,
-                                           MaximumSize,
-                                           SectionPageProtection,
-                                           AllocationAttributes,
-                                           FileHandle);
+            status = g_NtCreateSectionStub(SectionHandle, DesiredAccess, ObjectAttributes, MaximumSize,
+                                           SectionPageProtection, AllocationAttributes, FileHandle);
         }
         if (g_ActiveNtCallback)
         {
@@ -1951,7 +1794,7 @@ namespace IX_NT
 
             PublishNtEventAlways(ctx, status, policy);
             IX_RUNTIME_INTERNAL::FlushHookEvents();
-            (void)IXIPC::DrainPendingHookEventsSynchronously(64);
+            (void)SKUGGA_IPC::DrainPendingHookEventsSynchronously(64);
         }
 
         if (skipOriginal)
@@ -1989,9 +1832,7 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtOpenThreadToken_Hook(HANDLE ThreadHandle,
-                                          ACCESS_MASK DesiredAccess,
-                                          BOOLEAN OpenAsSelf,
+    NTSTATUS NTAPI NtOpenThreadToken_Hook(HANDLE ThreadHandle, ACCESS_MASK DesiredAccess, BOOLEAN OpenAsSelf,
                                           PHANDLE TokenHandle)
     {
         if (!g_NtOpenThreadTokenStub)
@@ -2021,12 +1862,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtOpenFile_Hook(PHANDLE FileHandle,
-                                   ACCESS_MASK DesiredAccess,
-                                   POBJECT_ATTRIBUTES ObjectAttributes,
-                                   PIO_STATUS_BLOCK IoStatusBlock,
-                                   ULONG ShareAccess,
-                                   ULONG OpenOptions)
+    NTSTATUS NTAPI NtOpenFile_Hook(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes,
+                                   PIO_STATUS_BLOCK IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions)
     {
         if (!g_NtOpenFileStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -2058,10 +1895,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQueryInformationProcess_Hook(HANDLE ProcessHandle,
-                                                  ULONG ProcessInformationClass,
-                                                  PVOID ProcessInformation,
-                                                  ULONG ProcessInformationLength,
+    NTSTATUS NTAPI NtQueryInformationProcess_Hook(HANDLE ProcessHandle, ULONG ProcessInformationClass,
+                                                  PVOID ProcessInformation, ULONG ProcessInformationLength,
                                                   PULONG ReturnLength)
     {
         if (!g_NtQueryInformationProcessStub)
@@ -2072,8 +1907,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtQueryInformationProcess", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtQueryInformationProcessStub(
-                ProcessHandle, ProcessInformationClass, ProcessInformation, ProcessInformationLength, ReturnLength);
+            status = g_NtQueryInformationProcessStub(ProcessHandle, ProcessInformationClass, ProcessInformation,
+                                                     ProcessInformationLength, ReturnLength);
         }
         if (g_ActiveNtCallback)
         {
@@ -2091,10 +1926,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQueryInformationThread_Hook(HANDLE ThreadHandle,
-                                                 ULONG ThreadInformationClass,
-                                                 PVOID ThreadInformation,
-                                                 ULONG ThreadInformationLength,
+    NTSTATUS NTAPI NtQueryInformationThread_Hook(HANDLE ThreadHandle, ULONG ThreadInformationClass,
+                                                 PVOID ThreadInformation, ULONG ThreadInformationLength,
                                                  PULONG ReturnLength)
     {
         if (!g_NtQueryInformationThreadStub)
@@ -2105,8 +1938,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtQueryInformationThread", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtQueryInformationThreadStub(
-                ThreadHandle, ThreadInformationClass, ThreadInformation, ThreadInformationLength, ReturnLength);
+            status = g_NtQueryInformationThreadStub(ThreadHandle, ThreadInformationClass, ThreadInformation,
+                                                    ThreadInformationLength, ReturnLength);
         }
         if (g_ActiveNtCallback)
         {
@@ -2157,11 +1990,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQuerySection_Hook(HANDLE SectionHandle,
-                                       ULONG SectionInformationClass,
-                                       PVOID InformationBuffer,
-                                       ULONG InformationBufferSize,
-                                       PULONG ResultLength)
+    NTSTATUS NTAPI NtQuerySection_Hook(HANDLE SectionHandle, ULONG SectionInformationClass, PVOID InformationBuffer,
+                                       ULONG InformationBufferSize, PULONG ResultLength)
     {
         if (!g_NtQuerySectionStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -2171,8 +2001,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtQuerySection", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtQuerySectionStub(
-                SectionHandle, SectionInformationClass, InformationBuffer, InformationBufferSize, ResultLength);
+            status = g_NtQuerySectionStub(SectionHandle, SectionInformationClass, InformationBuffer,
+                                          InformationBufferSize, ResultLength);
         }
         if (g_ActiveNtCallback)
         {
@@ -2219,10 +2049,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtOpenProcess_Hook(PHANDLE ProcessHandle,
-                                      ACCESS_MASK DesiredAccess,
-                                      POBJECT_ATTRIBUTES ObjectAttributes,
-                                      PCLIENT_ID ClientId)
+    NTSTATUS NTAPI NtOpenProcess_Hook(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess,
+                                      POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId)
     {
         if (!g_NtOpenProcessStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -2254,10 +2082,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtOpenThread_Hook(PHANDLE ThreadHandle,
-                                     ACCESS_MASK DesiredAccess,
-                                     POBJECT_ATTRIBUTES ObjectAttributes,
-                                     PCLIENT_ID ClientId)
+    NTSTATUS NTAPI NtOpenThread_Hook(PHANDLE ThreadHandle, ACCESS_MASK DesiredAccess,
+                                     POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId)
     {
         if (!g_NtOpenThreadStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -2289,12 +2115,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtDuplicateObject_Hook(HANDLE SourceProcessHandle,
-                                          HANDLE SourceHandle,
-                                          HANDLE TargetProcessHandle,
-                                          PHANDLE TargetHandle,
-                                          ACCESS_MASK DesiredAccess,
-                                          ULONG Attributes,
+    NTSTATUS NTAPI NtDuplicateObject_Hook(HANDLE SourceProcessHandle, HANDLE SourceHandle, HANDLE TargetProcessHandle,
+                                          PHANDLE TargetHandle, ACCESS_MASK DesiredAccess, ULONG Attributes,
                                           ULONG Options)
     {
         if (!g_NtDuplicateObjectStub)
@@ -2305,13 +2127,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtDuplicateObject", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtDuplicateObjectStub(SourceProcessHandle,
-                                             SourceHandle,
-                                             TargetProcessHandle,
-                                             TargetHandle,
-                                             DesiredAccess,
-                                             Attributes,
-                                             Options);
+            status = g_NtDuplicateObjectStub(SourceProcessHandle, SourceHandle, TargetProcessHandle, TargetHandle,
+                                             DesiredAccess, Attributes, Options);
         }
         if (g_ActiveNtCallback)
         {
@@ -2432,8 +2249,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQueueApcThread_Hook(
-        HANDLE ThreadHandle, PVOID ApcRoutine, PVOID ApcArgument1, PVOID ApcArgument2, PVOID ApcArgument3)
+    NTSTATUS NTAPI NtQueueApcThread_Hook(HANDLE ThreadHandle, PVOID ApcRoutine, PVOID ApcArgument1, PVOID ApcArgument2,
+                                         PVOID ApcArgument3)
     {
         if (!g_NtQueueApcThreadStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -2468,12 +2285,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtAllocateVirtualMemoryEx_Hook(HANDLE ProcessHandle,
-                                                  PVOID *BaseAddress,
-                                                  PSIZE_T RegionSize,
-                                                  ULONG AllocationType,
-                                                  ULONG PageProtection,
-                                                  PVOID ExtendedParameters,
+    NTSTATUS NTAPI NtAllocateVirtualMemoryEx_Hook(HANDLE ProcessHandle, PVOID *BaseAddress, PSIZE_T RegionSize,
+                                                  ULONG AllocationType, ULONG PageProtection, PVOID ExtendedParameters,
                                                   ULONG ExtendedParameterCount)
     {
         if (!g_NtAllocateVirtualMemoryExStub)
@@ -2484,13 +2297,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtAllocateVirtualMemoryEx", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtAllocateVirtualMemoryExStub(ProcessHandle,
-                                                     BaseAddress,
-                                                     RegionSize,
-                                                     AllocationType,
-                                                     PageProtection,
-                                                     ExtendedParameters,
-                                                     ExtendedParameterCount);
+            status = g_NtAllocateVirtualMemoryExStub(ProcessHandle, BaseAddress, RegionSize, AllocationType,
+                                                     PageProtection, ExtendedParameters, ExtendedParameterCount);
         }
         if (g_ActiveNtCallback)
         {
@@ -2513,15 +2321,9 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtMapViewOfSectionEx_Hook(HANDLE SectionHandle,
-                                             HANDLE ProcessHandle,
-                                             PVOID *BaseAddress,
-                                             PLARGE_INTEGER SectionOffset,
-                                             PSIZE_T ViewSize,
-                                             ULONG AllocationType,
-                                             ULONG Win32Protect,
-                                             PVOID ExtendedParameters,
-                                             ULONG ExtendedParameterCount)
+    NTSTATUS NTAPI NtMapViewOfSectionEx_Hook(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID *BaseAddress,
+                                             PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, ULONG AllocationType,
+                                             ULONG Win32Protect, PVOID ExtendedParameters, ULONG ExtendedParameterCount)
     {
         if (!g_NtMapViewOfSectionExStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -2531,15 +2333,9 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtMapViewOfSectionEx", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtMapViewOfSectionExStub(SectionHandle,
-                                                ProcessHandle,
-                                                BaseAddress,
-                                                SectionOffset,
-                                                ViewSize,
-                                                AllocationType,
-                                                Win32Protect,
-                                                ExtendedParameters,
-                                                ExtendedParameterCount);
+            status =
+                g_NtMapViewOfSectionExStub(SectionHandle, ProcessHandle, BaseAddress, SectionOffset, ViewSize,
+                                           AllocationType, Win32Protect, ExtendedParameters, ExtendedParameterCount);
         }
         if (g_ActiveNtCallback)
         {
@@ -2559,27 +2355,17 @@ namespace IX_NT
             (void)TryReadSizeArgument(ViewSize, ctx.Args[4]);
             if (NT_SUCCESS(status) && ctx.Args[2] != 0 && ctx.Args[4] != 0)
             {
-                TryObserveDirectSyscallRange(ProcessHandle,
-                                             reinterpret_cast<void *>(ctx.Args[2]),
-                                             static_cast<SIZE_T>(ctx.Args[4]),
-                                             caller,
-                                             ctx.FunctionName,
-                                             &ctx);
+                TryObserveDirectSyscallRange(ProcessHandle, reinterpret_cast<void *>(ctx.Args[2]),
+                                             static_cast<SIZE_T>(ctx.Args[4]), caller, ctx.FunctionName, &ctx);
             }
             PublishNtEventIfSuccessful(ctx, status, policy);
         }
         return status;
     }
 
-    NTSTATUS NTAPI NtMapViewOfSection_Hook(HANDLE SectionHandle,
-                                           HANDLE ProcessHandle,
-                                           PVOID *BaseAddress,
-                                           ULONG_PTR ZeroBits,
-                                           SIZE_T CommitSize,
-                                           PLARGE_INTEGER SectionOffset,
-                                           PSIZE_T ViewSize,
-                                           ULONG InheritDisposition,
-                                           ULONG AllocationType,
+    NTSTATUS NTAPI NtMapViewOfSection_Hook(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID *BaseAddress,
+                                           ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset,
+                                           PSIZE_T ViewSize, ULONG InheritDisposition, ULONG AllocationType,
                                            ULONG Win32Protect)
     {
         if (!g_NtMapViewOfSectionStub)
@@ -2590,16 +2376,9 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtMapViewOfSection", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtMapViewOfSectionStub(SectionHandle,
-                                              ProcessHandle,
-                                              BaseAddress,
-                                              ZeroBits,
-                                              CommitSize,
-                                              SectionOffset,
-                                              ViewSize,
-                                              InheritDisposition,
-                                              AllocationType,
-                                              Win32Protect);
+            status =
+                g_NtMapViewOfSectionStub(SectionHandle, ProcessHandle, BaseAddress, ZeroBits, CommitSize, SectionOffset,
+                                         ViewSize, InheritDisposition, AllocationType, Win32Protect);
         }
         if (g_ActiveNtCallback)
         {
@@ -2619,12 +2398,8 @@ namespace IX_NT
             (void)TryReadSizeArgument(ViewSize, ctx.Args[3]);
             if (NT_SUCCESS(status) && ctx.Args[2] != 0 && ctx.Args[3] != 0)
             {
-                TryObserveDirectSyscallRange(ProcessHandle,
-                                             reinterpret_cast<void *>(ctx.Args[2]),
-                                             static_cast<SIZE_T>(ctx.Args[3]),
-                                             caller,
-                                             ctx.FunctionName,
-                                             &ctx);
+                TryObserveDirectSyscallRange(ProcessHandle, reinterpret_cast<void *>(ctx.Args[2]),
+                                             static_cast<SIZE_T>(ctx.Args[3]), caller, ctx.FunctionName, &ctx);
             }
             PublishNtEventIfSuccessful(ctx, status, policy);
         }
@@ -2686,12 +2461,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQueueApcThreadEx_Hook(HANDLE ThreadHandle,
-                                           HANDLE UserApcReserveHandle,
-                                           PVOID ApcRoutine,
-                                           PVOID ApcArgument1,
-                                           PVOID ApcArgument2,
-                                           PVOID ApcArgument3)
+    NTSTATUS NTAPI NtQueueApcThreadEx_Hook(HANDLE ThreadHandle, HANDLE UserApcReserveHandle, PVOID ApcRoutine,
+                                           PVOID ApcArgument1, PVOID ApcArgument2, PVOID ApcArgument3)
     {
         if (!g_NtQueueApcThreadExStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -2701,8 +2472,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtQueueApcThreadEx", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtQueueApcThreadExStub(
-                ThreadHandle, UserApcReserveHandle, ApcRoutine, ApcArgument1, ApcArgument2, ApcArgument3);
+            status = g_NtQueueApcThreadExStub(ThreadHandle, UserApcReserveHandle, ApcRoutine, ApcArgument1,
+                                              ApcArgument2, ApcArgument3);
         }
         if (g_ActiveNtCallback)
         {
@@ -2728,12 +2499,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtQueueApcThreadEx2_Hook(HANDLE ThreadHandle,
-                                            HANDLE UserApcReserveHandle,
-                                            ULONG QueueUserApcFlags,
-                                            PVOID ApcRoutine,
-                                            PVOID ApcArgument1,
-                                            PVOID ApcArgument2,
+    NTSTATUS NTAPI NtQueueApcThreadEx2_Hook(HANDLE ThreadHandle, HANDLE UserApcReserveHandle, ULONG QueueUserApcFlags,
+                                            PVOID ApcRoutine, PVOID ApcArgument1, PVOID ApcArgument2,
                                             PVOID ApcArgument3)
     {
         if (!g_NtQueueApcThreadEx2Stub)
@@ -2744,13 +2511,8 @@ namespace IX_NT
         bool skipOriginal = EvaluateNtPolicyPreCall("NtQueueApcThreadEx2", caller, policy, status);
         if (!skipOriginal)
         {
-            status = g_NtQueueApcThreadEx2Stub(ThreadHandle,
-                                               UserApcReserveHandle,
-                                               QueueUserApcFlags,
-                                               ApcRoutine,
-                                               ApcArgument1,
-                                               ApcArgument2,
-                                               ApcArgument3);
+            status = g_NtQueueApcThreadEx2Stub(ThreadHandle, UserApcReserveHandle, QueueUserApcFlags, ApcRoutine,
+                                               ApcArgument1, ApcArgument2, ApcArgument3);
         }
         if (g_ActiveNtCallback)
         {
@@ -2776,9 +2538,7 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtOpenProcessTokenEx_Hook(HANDLE ProcessHandle,
-                                             ACCESS_MASK DesiredAccess,
-                                             ULONG HandleAttributes,
+    NTSTATUS NTAPI NtOpenProcessTokenEx_Hook(HANDLE ProcessHandle, ACCESS_MASK DesiredAccess, ULONG HandleAttributes,
                                              PHANDLE TokenHandle)
     {
         if (!g_NtOpenProcessTokenExStub)
@@ -2808,8 +2568,8 @@ namespace IX_NT
         return status;
     }
 
-    NTSTATUS NTAPI NtOpenThreadTokenEx_Hook(
-        HANDLE ThreadHandle, ACCESS_MASK DesiredAccess, BOOLEAN OpenAsSelf, ULONG HandleAttributes, PHANDLE TokenHandle)
+    NTSTATUS NTAPI NtOpenThreadTokenEx_Hook(HANDLE ThreadHandle, ACCESS_MASK DesiredAccess, BOOLEAN OpenAsSelf,
+                                            ULONG HandleAttributes, PHANDLE TokenHandle)
     {
         if (!g_NtOpenThreadTokenExStub)
             return STATUS_NOT_IMPLEMENTED;
@@ -2968,10 +2728,7 @@ bool IxSetNtHook(NtHookCallback callback) noexcept
     for (std::size_t walkIndex = 0; walkIndex < RTL_NUMBER_OF(g_NtHooks); ++walkIndex)
     {
         auto &hook = g_NtHooks[hookOrder[walkIndex]];
-        IxDbgLog("IxSetNtHook: hook[%zu/%zu] name=%s installed=%u",
-                 walkIndex + 1,
-                 RTL_NUMBER_OF(g_NtHooks),
-                 hook.Name,
+        IxDbgLog("IxSetNtHook: hook[%zu/%zu] name=%s installed=%u", walkIndex + 1, RTL_NUMBER_OF(g_NtHooks), hook.Name,
                  hook.Installed ? 1u : 0u);
         if (!IX_RUNTIME_INTERNAL::ShouldInstallNtHookByPolicy(hook.Name))
         {
@@ -3021,8 +2778,8 @@ bool IxSetNtHook(NtHookCallback callback) noexcept
             if (TryDecodeAbsoluteTarget(targetAddress, redirectTarget) && redirectTarget != nullptr &&
                 !AddressWithinRange(redirectTarget, ntdllImage))
             {
-                SetNtHookInitFault(
-                    NtHookInitFaultCode::ExportRedirectedOutsideImage, hook.Name, targetAddress, redirectTarget);
+                SetNtHookInitFault(NtHookInitFaultCode::ExportRedirectedOutsideImage, hook.Name, targetAddress,
+                                   redirectTarget);
             }
             else
             {
@@ -3036,8 +2793,7 @@ bool IxSetNtHook(NtHookCallback callback) noexcept
         IxDbgLog("IxSetNtHook: syscall name=%s index=%lu", hook.Name, static_cast<unsigned long>(sysIndex));
         hook.TargetToken =
             RegisterNtHookPointer(targetAddress, IX_RUNTIME_INTERNAL::IxIhrType::NtHookTarget, hook.Name);
-        IxDbgLog("IxSetNtHook: target token name=%s token=0x%llX",
-                 hook.Name,
+        IxDbgLog("IxSetNtHook: target token name=%s token=0x%llX", hook.Name,
                  static_cast<unsigned long long>(hook.TargetToken));
         if (hook.TargetToken == 0)
         {
@@ -3049,22 +2805,20 @@ bool IxSetNtHook(NtHookCallback callback) noexcept
         void *stubCode = BuildSyscallStub(targetAddress, sysIndex);
         if (!stubCode)
         {
-            SetNtHookInitFault(
-                NtHookInitFaultCode::SyscallStubAllocFailed, hook.Name, targetAddress, nullptr, sysIndex);
+            SetNtHookInitFault(NtHookInitFaultCode::SyscallStubAllocFailed, hook.Name, targetAddress, nullptr,
+                               sysIndex);
             IxDbgLog("IxSetNtHook: syscall stub alloc/register failed name=%s", hook.Name);
             continue;
         }
         IxDbgLog("IxSetNtHook: syscall stub name=%s stub=%p", hook.Name, stubCode);
 
         hook.SyscallStubToken =
-            RegisterNtHookPointer(stubCode,
-                                  IX_RUNTIME_INTERNAL::IxIhrType::NtSyscallStub,
-                                  hook.Name,
+            RegisterNtHookPointer(stubCode, IX_RUNTIME_INTERNAL::IxIhrType::NtSyscallStub, hook.Name,
                                   IX_RUNTIME_INTERNAL::kIxIhrFlagExecutable | IX_RUNTIME_INTERNAL::kIxIhrFlagOwned);
         if (hook.SyscallStubToken == 0)
         {
-            SetNtHookInitFault(
-                NtHookInitFaultCode::SyscallStubAllocFailed, hook.Name, targetAddress, nullptr, sysIndex);
+            SetNtHookInitFault(NtHookInitFaultCode::SyscallStubAllocFailed, hook.Name, targetAddress, nullptr,
+                               sysIndex);
             IxDbgLog("IxSetNtHook: syscall stub token failed name=%s stub=%p", hook.Name, stubCode);
             continue;
         }
@@ -3150,10 +2904,7 @@ bool IxSetNtHook(NtHookCallback callback) noexcept
             continue;
         }
         hook.HookMethod = IX_RUNTIME_INTERNAL::HookMethodForNtHookByPolicy(hook.Name);
-        IxDbgLog("IxSetNtHook: installing name=%s target=%p entry=%p method=%lu",
-                 hook.Name,
-                 targetAddress,
-                 hookEntry,
+        IxDbgLog("IxSetNtHook: installing name=%s target=%p entry=%p method=%lu", hook.Name, targetAddress, hookEntry,
                  static_cast<unsigned long>(hook.HookMethod));
 
         IX_NT_METHODS::NtHookPatch patch{hook.Name, targetAddress, hookEntry, hook.OriginalBytes, hook.HookMethod};
@@ -3184,8 +2935,8 @@ void IxRemoveNtHook() noexcept
         if (!hook.Installed || targetAddress == nullptr)
             continue;
 
-        IX_NT_METHODS::NtHookPatch patch{
-            hook.Name, targetAddress, GetHookEntry(hook.Name), hook.OriginalBytes, hook.HookMethod};
+        IX_NT_METHODS::NtHookPatch patch{hook.Name, targetAddress, GetHookEntry(hook.Name), hook.OriginalBytes,
+                                         hook.HookMethod};
         IX_NT_METHODS::RemoveNtHookPatch(patch);
         IX_RUNTIME_INTERNAL::ReleaseIndirectHandle(hook.TargetToken);
         IX_RUNTIME_INTERNAL::ReleaseIndirectHandle(hook.SyscallStubToken);
@@ -3218,8 +2969,8 @@ bool IxCheckNtHookIntegrity(std::uint32_t *mismatchCount) noexcept
             continue;
         }
 
-        IX_NT_METHODS::NtHookPatch patch{
-            hook.Name, targetAddress, expectedHook, const_cast<std::uint8_t *>(hook.OriginalBytes), hook.HookMethod};
+        IX_NT_METHODS::NtHookPatch patch{hook.Name, targetAddress, expectedHook,
+                                         const_cast<std::uint8_t *>(hook.OriginalBytes), hook.HookMethod};
         if (!IX_NT_METHODS::CheckNtHookPatch(patch))
         {
             ++mismatches;

@@ -71,11 +71,8 @@ namespace IX_RUNTIME_INTERNAL
             return fn;
         }
 
-        DECLSPEC_GUARD_SUPPRESS bool ApplyCallTargetFlags(SetProcessValidCallTargetsFn fn,
-                                                          void *pageBase,
-                                                          SIZE_T pageSize,
-                                                          ULONG_PTR offset,
-                                                          ULONG_PTR flags) noexcept
+        DECLSPEC_GUARD_SUPPRESS bool ApplyCallTargetFlags(SetProcessValidCallTargetsFn fn, void *pageBase,
+                                                          SIZE_T pageSize, ULONG_PTR offset, ULONG_PTR flags) noexcept
         {
             CFG_CALL_TARGET_INFO info{};
             info.Offset = offset;
@@ -95,8 +92,8 @@ namespace IX_RUNTIME_INTERNAL
 
             {
                 IxInternalScope scope;
-                ok = GetProcessMitigationPolicy(
-                         GetCurrentProcess(), ProcessControlFlowGuardPolicy, &policy, sizeof(policy)) != FALSE;
+                ok = GetProcessMitigationPolicy(GetCurrentProcess(), ProcessControlFlowGuardPolicy, &policy,
+                                                sizeof(policy)) != FALSE;
                 if (!ok)
                 {
                     lastError = GetLastError();
@@ -110,12 +107,9 @@ namespace IX_RUNTIME_INTERNAL
 
             IxDbgLog(
                 "QueryCurrentProcessControlFlowPolicy: ok=%u flags=0x%08lX cfg=%u strict=%u xfg=%u audit=%u gle=%lu",
-                ok ? 1u : 0u,
-                static_cast<unsigned long>(g_CfgPolicyFlags),
-                ok && policy.EnableControlFlowGuard ? 1u : 0u,
-                ok && policy.StrictMode ? 1u : 0u,
-                ok && policy.EnableXfg ? 1u : 0u,
-                ok && policy.EnableXfgAuditMode ? 1u : 0u,
+                ok ? 1u : 0u, static_cast<unsigned long>(g_CfgPolicyFlags),
+                ok && policy.EnableControlFlowGuard ? 1u : 0u, ok && policy.StrictMode ? 1u : 0u,
+                ok && policy.EnableXfg ? 1u : 0u, ok && policy.EnableXfgAuditMode ? 1u : 0u,
                 static_cast<unsigned long>(lastError));
         }
 
@@ -136,10 +130,8 @@ namespace IX_RUNTIME_INTERNAL
 
     bool RegisterControlFlowGuardCallTarget(void *targetAddress, IxCfgCallTargetMode mode, const char *tag) noexcept
     {
-        IxDbgLog("RegisterControlFlowGuardCallTarget: begin target=%p mode=%lu tag=%s",
-                 targetAddress,
-                 static_cast<unsigned long>(mode),
-                 tag != nullptr ? tag : "<null>");
+        IxDbgLog("RegisterControlFlowGuardCallTarget: begin target=%p mode=%lu tag=%s", targetAddress,
+                 static_cast<unsigned long>(mode), tag != nullptr ? tag : "<null>");
         if (targetAddress == nullptr)
         {
             return false;
@@ -148,8 +140,7 @@ namespace IX_RUNTIME_INTERNAL
         IxControlFlowPolicy policy = QueryCurrentProcessControlFlowPolicy();
         if (!policy.CfgEnabled)
         {
-            IxDbgLog("RegisterControlFlowGuardCallTarget: CFG disabled target=%p tag=%s",
-                     targetAddress,
+            IxDbgLog("RegisterControlFlowGuardCallTarget: CFG disabled target=%p tag=%s", targetAddress,
                      tag != nullptr ? tag : "<null>");
             return true;
         }
@@ -159,17 +150,13 @@ namespace IX_RUNTIME_INTERNAL
             !IsExecutableProtection(mbi.Protect))
         {
             IxRuntimeReportFault(IxRuntimeFaultCode::ControlFlowCallTargetRegisterFailed,
-                                 reinterpret_cast<std::uint64_t>(targetAddress),
-                                 1);
+                                 reinterpret_cast<std::uint64_t>(targetAddress), 1);
             return false;
         }
         IxDbgLog("RegisterControlFlowGuardCallTarget: memory base=%p alloc=%p size=0x%llX protect=0x%08lX type=0x%08lX "
                  "tag=%s",
-                 mbi.BaseAddress,
-                 mbi.AllocationBase,
-                 static_cast<unsigned long long>(mbi.RegionSize),
-                 static_cast<unsigned long>(mbi.Protect),
-                 static_cast<unsigned long>(mbi.Type),
+                 mbi.BaseAddress, mbi.AllocationBase, static_cast<unsigned long long>(mbi.RegionSize),
+                 static_cast<unsigned long>(mbi.Protect), static_cast<unsigned long>(mbi.Type),
                  tag != nullptr ? tag : "<null>");
 
         const bool imageTarget = (mbi.Type == MEM_IMAGE);
@@ -183,13 +170,11 @@ namespace IX_RUNTIME_INTERNAL
 
         SetProcessValidCallTargetsFn fn = ResolveSetProcessValidCallTargets();
         IxDbgLog("RegisterControlFlowGuardCallTarget: resolved SetProcessValidCallTargets=%p tag=%s",
-                 reinterpret_cast<void *>(fn),
-                 tag != nullptr ? tag : "<null>");
+                 reinterpret_cast<void *>(fn), tag != nullptr ? tag : "<null>");
         if (fn == nullptr)
         {
             IxRuntimeReportFault(IxRuntimeFaultCode::ControlFlowCallTargetRegisterFailed,
-                                 reinterpret_cast<std::uint64_t>(targetAddress),
-                                 2);
+                                 reinterpret_cast<std::uint64_t>(targetAddress), 2);
             return false;
         }
 
@@ -199,17 +184,14 @@ namespace IX_RUNTIME_INTERNAL
         const auto offset = address - pageBaseValue;
         if ((offset & 0x0Fu) != 0)
         {
-            IxDbgLog("RegisterControlFlowGuardCallTarget: unaligned target=%p offset=0x%llX tag=%s",
-                     targetAddress,
-                     static_cast<unsigned long long>(offset),
-                     tag != nullptr ? tag : "<null>");
+            IxDbgLog("RegisterControlFlowGuardCallTarget: unaligned target=%p offset=0x%llX tag=%s", targetAddress,
+                     static_cast<unsigned long long>(offset), tag != nullptr ? tag : "<null>");
             if (imageTarget && !requiresXfg)
             {
                 return true;
             }
             IxRuntimeReportFault(IxRuntimeFaultCode::ControlFlowCallTargetRegisterFailed,
-                                 reinterpret_cast<std::uint64_t>(targetAddress),
-                                 3);
+                                 reinterpret_cast<std::uint64_t>(targetAddress), 3);
             return false;
         }
 
@@ -223,19 +205,13 @@ namespace IX_RUNTIME_INTERNAL
         {
             IxInternalScope scope;
             IxDbgLog("RegisterControlFlowGuardCallTarget: apply target=%p page=%p offset=0x%llX flags=0x%llX tag=%s",
-                     targetAddress,
-                     pageBase,
-                     static_cast<unsigned long long>(offset),
-                     static_cast<unsigned long long>(flags),
-                     tag != nullptr ? tag : "<null>");
+                     targetAddress, pageBase, static_cast<unsigned long long>(offset),
+                     static_cast<unsigned long long>(flags), tag != nullptr ? tag : "<null>");
             if (ApplyCallTargetFlags(fn, pageBase, pageSize, offset, flags))
             {
                 IxDbgLog("RegisterControlFlowGuardCallTarget: target=%p page=%p offset=0x%llX flags=0x%llX tag=%s",
-                         targetAddress,
-                         pageBase,
-                         static_cast<unsigned long long>(offset),
-                         static_cast<unsigned long long>(flags),
-                         tag != nullptr ? tag : "<null>");
+                         targetAddress, pageBase, static_cast<unsigned long long>(offset),
+                         static_cast<unsigned long long>(flags), tag != nullptr ? tag : "<null>");
                 return true;
             }
         }
@@ -247,24 +223,17 @@ namespace IX_RUNTIME_INTERNAL
             if (ApplyCallTargetFlags(fn, pageBase, pageSize, offset, CFG_CALL_TARGET_VALID))
             {
                 IxDbgLog("RegisterControlFlowGuardCallTarget: XFG audit fallback target=%p gle=%lu tag=%s",
-                         targetAddress,
-                         static_cast<unsigned long>(firstError),
-                         tag != nullptr ? tag : "<null>");
+                         targetAddress, static_cast<unsigned long>(firstError), tag != nullptr ? tag : "<null>");
                 return true;
             }
         }
 
         IxDbgLog(
             "RegisterControlFlowGuardCallTarget: failed target=%p page=%p offset=0x%llX flags=0x%llX gle=%lu tag=%s",
-            targetAddress,
-            pageBase,
-            static_cast<unsigned long long>(offset),
-            static_cast<unsigned long long>(flags),
-            static_cast<unsigned long>(firstError),
-            tag != nullptr ? tag : "<null>");
+            targetAddress, pageBase, static_cast<unsigned long long>(offset), static_cast<unsigned long long>(flags),
+            static_cast<unsigned long>(firstError), tag != nullptr ? tag : "<null>");
         IxRuntimeReportFault(IxRuntimeFaultCode::ControlFlowCallTargetRegisterFailed,
-                             reinterpret_cast<std::uint64_t>(targetAddress),
-                             firstError);
+                             reinterpret_cast<std::uint64_t>(targetAddress), firstError);
         return false;
     }
 

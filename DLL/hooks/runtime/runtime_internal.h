@@ -28,8 +28,8 @@
 #include <cstdint>
 #include <vector>
 
-/* Prevent BLIND housekeeping calls from recursively re-entering BLIND hooks.
- * Use Win32 TLS instead of __declspec(thread): BLIND is injected into already
+/* Prevent SKUGGA housekeeping calls from recursively re-entering SKUGGA hooks.
+ * Use Win32 TLS instead of __declspec(thread): SKUGGA is injected into already
  * running processes, and compiler TLS can fault on loader-created threads before
  * the DLL's dynamic TLS vector is populated. */
 bool IxIsInternalCall() noexcept;

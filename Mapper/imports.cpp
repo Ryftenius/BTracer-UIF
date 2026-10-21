@@ -1,6 +1,6 @@
-﻿#include "internal.h"
+#include "internal.h"
 
-namespace blind::mapper
+namespace skugga::mapper
 {
     HMODULE LoadLocalImportModule(const char *name)
     {
@@ -65,8 +65,8 @@ namespace blind::mapper
                 seenBases.insert(allocationBase).second)
             {
                 wchar_t mappedPath[1024]{};
-                if (getMappedFileName(
-                        process, reinterpret_cast<void *>(allocationBase), mappedPath, RTL_NUMBER_OF(mappedPath)) != 0)
+                if (getMappedFileName(process, reinterpret_cast<void *>(allocationBase), mappedPath,
+                                      RTL_NUMBER_OF(mappedPath)) != 0)
                 {
                     mappedPath[RTL_NUMBER_OF(mappedPath) - 1] = L'\0';
                     if (_wcsicmp(WideBaseName(mappedPath).c_str(), baseName.c_str()) == 0)
@@ -87,9 +87,7 @@ namespace blind::mapper
         return false;
     }
 
-    bool ResolveRemoteAddressForLocalProc(HANDLE process,
-                                          FARPROC localProc,
-                                          UINT64 &remoteAddress,
+    bool ResolveRemoteAddressForLocalProc(HANDLE process, FARPROC localProc, UINT64 &remoteAddress,
                                           std::wstring *moduleNameOut)
     {
         remoteAddress = 0;
@@ -100,8 +98,7 @@ namespace blind::mapper
 
         HMODULE localOwner = nullptr;
         if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                                reinterpret_cast<LPCSTR>(localProc),
-                                &localOwner) ||
+                                reinterpret_cast<LPCSTR>(localProc), &localOwner) ||
             localOwner == nullptr)
         {
             return false;
@@ -200,8 +197,8 @@ namespace blind::mapper
             HMODULE localImport = LoadLocalImportModule(dllName);
             if (localImport == nullptr)
             {
-                HostDebugLog(
-                    ctx, "manual-map: local import module load failed name=%s gle=%lu", dllName, GetLastError());
+                HostDebugLog(ctx, "manual-map: local import module load failed name=%s gle=%lu", dllName,
+                             GetLastError());
                 return Fail(ctx, "failed to resolve an import module locally");
             }
 
@@ -252,9 +249,9 @@ namespace blind::mapper
                     {
                         return Fail(ctx, "named import lies outside image");
                     }
-                    const char *procName = ImageRvaString(
-                        mapped.Image,
-                        static_cast<DWORD>(lookup->u1.AddressOfData + offsetof(IMAGE_IMPORT_BY_NAME, Name)));
+                    const char *procName =
+                        ImageRvaString(mapped.Image, static_cast<DWORD>(lookup->u1.AddressOfData +
+                                                                        offsetof(IMAGE_IMPORT_BY_NAME, Name)));
                     if (procName == nullptr)
                     {
                         return Fail(ctx, "named import string is invalid");
@@ -264,8 +261,8 @@ namespace blind::mapper
 
                 if (localProc == nullptr)
                 {
-                    HostDebugLog(
-                        ctx, "manual-map: local import proc resolve failed dll=%s gle=%lu", dllName, GetLastError());
+                    HostDebugLog(ctx, "manual-map: local import proc resolve failed dll=%s gle=%lu", dllName,
+                                 GetLastError());
                     return Fail(ctx, "failed to resolve an import procedure locally");
                 }
 
@@ -276,12 +273,10 @@ namespace blind::mapper
                     char ownerText[MAX_PATH]{};
                     if (!ownerName.empty())
                     {
-                        (void)WideCharToMultiByte(
-                            CP_UTF8, 0, ownerName.c_str(), -1, ownerText, RTL_NUMBER_OF(ownerText), nullptr, nullptr);
+                        (void)WideCharToMultiByte(CP_UTF8, 0, ownerName.c_str(), -1, ownerText,
+                                                  RTL_NUMBER_OF(ownerText), nullptr, nullptr);
                     }
-                    HostDebugLog(ctx,
-                                 "manual-map: import owner not loaded in child dll=%s owner=%s",
-                                 dllName,
+                    HostDebugLog(ctx, "manual-map: import owner not loaded in child dll=%s owner=%s", dllName,
                                  ownerText[0] != '\0' ? ownerText : "<unknown>");
                     return Fail(ctx, "an import dependency is not loaded in the child process");
                 }
@@ -291,4 +286,4 @@ namespace blind::mapper
 
         return true;
     }
-} // namespace blind::mapper
+} // namespace skugga::mapper

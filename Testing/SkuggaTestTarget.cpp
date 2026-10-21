@@ -1,4 +1,4 @@
-﻿#ifndef WIN32_LEAN_AND_MEAN
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 
@@ -13,7 +13,7 @@
 #include <evntprov.h>
 #include <strsafe.h>
 
-#include "../ABI/blind_ipc.h"
+#include "../ABI/skugga_ipc.h"
 #include "../DLL/support/win32_util.h"
 
 #include <atomic>
@@ -37,10 +37,8 @@ namespace
         PVOID Reserved3;
     };
 
-    using NtQueryInformationProcessProbeFn = LONG(NTAPI *)(HANDLE ProcessHandle,
-                                                           ULONG ProcessInformationClass,
-                                                           PVOID ProcessInformation,
-                                                           ULONG ProcessInformationLength,
+    using NtQueryInformationProcessProbeFn = LONG(NTAPI *)(HANDLE ProcessHandle, ULONG ProcessInformationClass,
+                                                           PVOID ProcessInformation, ULONG ProcessInformationLength,
                                                            PULONG ReturnLength);
     using WSAStartupProbeFn = int(WSAAPI *)(WORD, LPWSADATA);
     using WSACleanupProbeFn = int(WSAAPI *)();
@@ -63,7 +61,7 @@ namespace
     {
         HANDLE ReadyEvent = nullptr;
         HANDLE ServerThread = nullptr;
-        HMODULE Blind = nullptr;
+        HMODULE Skugga = nullptr;
         CRITICAL_SECTION DiagnosticsLock{};
         bool DiagnosticsLockInitialized = false;
         std::atomic<bool> Stop{false};
@@ -99,32 +97,25 @@ namespace
         UINT64 Reference1 = 0;
         UINT64 AllocationBase = 0;
         UINT64 RegionSize = 0;
-        char Owner[IXIPC_MAX_HOOK_MODULE_NAME]{};
-        char Name[IXIPC_MAX_HOOK_API_NAME]{};
+        char Owner[SKUGGA_IPC_MAX_HOOK_MODULE_NAME]{};
+        char Name[SKUGGA_IPC_MAX_HOOK_API_NAME]{};
     };
 
-    using BLIND_SUPPORT::EffectivePipeName;
-    using BLIND_SUPPORT::EnsureDirectory;
-    using BLIND_SUPPORT::JoinPath;
-    using BLIND_SUPPORT::KindName;
-    using BLIND_SUPPORT::ModuleDirectory;
-    using BLIND_SUPPORT::WritePacket;
+    using SKUGGA_SUPPORT::EffectivePipeName;
+    using SKUGGA_SUPPORT::EnsureDirectory;
+    using SKUGGA_SUPPORT::JoinPath;
+    using SKUGGA_SUPPORT::KindName;
+    using SKUGGA_SUPPORT::ModuleDirectory;
+    using SKUGGA_SUPPORT::WritePacket;
 
     std::wstring BuildDirectRunDirectory(const std::wstring &baseDir)
     {
         SYSTEMTIME now{};
         GetLocalTime(&now);
         wchar_t leaf[96]{};
-        swprintf_s(leaf,
-                   L"direct-%04u%02u%02u-%02u%02u%02u-%lu",
-                   now.wYear,
-                   now.wMonth,
-                   now.wDay,
-                   now.wHour,
-                   now.wMinute,
-                   now.wSecond,
-                   GetCurrentProcessId());
-        std::wstring root = JoinPath(baseDir, L"BlindDiagnostics");
+        swprintf_s(leaf, L"direct-%04u%02u%02u-%02u%02u%02u-%lu", now.wYear, now.wMonth, now.wDay, now.wHour,
+                   now.wMinute, now.wSecond, GetCurrentProcessId());
+        std::wstring root = JoinPath(baseDir, L"SkuggaDiagnostics");
         (void)EnsureDirectory(root);
         std::wstring runDir = JoinPath(root, leaf);
         (void)EnsureDirectory(runDir);
@@ -156,7 +147,7 @@ namespace
         }
     }
 
-    void CopyEventSampleString(const IXIPC_HOOK_EVENT &eventRecord, char *out, std::size_t outChars) noexcept
+    void CopyEventSampleString(const SKUGGA_IPC_HOOK_EVENT &eventRecord, char *out, std::size_t outChars) noexcept
     {
         if (out == nullptr || outChars == 0)
         {
@@ -164,8 +155,8 @@ namespace
         }
         out[0] = '\0';
 
-        UINT32 safe =
-            eventRecord.DataSize < IXIPC_MAX_HOOK_DATA_SAMPLE ? eventRecord.DataSize : IXIPC_MAX_HOOK_DATA_SAMPLE;
+        UINT32 safe = eventRecord.DataSize < SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE ? eventRecord.DataSize
+                                                                             : SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE;
         safe = safe < outChars - 1 ? safe : static_cast<UINT32>(outChars - 1);
         for (UINT32 i = 0; i < safe; ++i)
         {
@@ -267,24 +258,22 @@ namespace
         }
     }
 
-    void WriteRawEventUnlocked(SelfHostContext &ctx, const IXIPC_HOOK_EVENT &eventRecord) noexcept
+    void WriteRawEventUnlocked(SelfHostContext &ctx, const SKUGGA_IPC_HOOK_EVENT &eventRecord) noexcept
     {
         if (ctx.EventsFile == nullptr)
         {
             return;
         }
 
-        char sample[IXIPC_MAX_HOOK_DATA_SAMPLE + 1]{};
+        char sample[SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE + 1]{};
         CopyEventSampleString(eventRecord, sample, RTL_NUMBER_OF(sample));
 
         std::fprintf(ctx.EventsFile,
                      "{\"pid\":%lu,\"tid\":%lu,\"kind\":\"%s\",\"kind_id\":%lu,\"op\":%lu,"
                      "\"api\":\"",
                      static_cast<unsigned long>(eventRecord.ProcessId),
-                     static_cast<unsigned long>(eventRecord.ThreadId),
-                     KindName(eventRecord.Kind),
-                     static_cast<unsigned long>(eventRecord.Kind),
-                     static_cast<unsigned long>(eventRecord.Operation));
+                     static_cast<unsigned long>(eventRecord.ThreadId), KindName(eventRecord.Kind),
+                     static_cast<unsigned long>(eventRecord.Kind), static_cast<unsigned long>(eventRecord.Operation));
         WriteJsonEscaped(ctx.EventsFile, eventRecord.ApiName);
         std::fputs("\",\"module\":\"", ctx.EventsFile);
         WriteJsonEscaped(ctx.EventsFile, eventRecord.ModuleName);
@@ -296,11 +285,9 @@ namespace
                      static_cast<unsigned long long>(eventRecord.Context1),
                      static_cast<unsigned long long>(eventRecord.Context2),
                      static_cast<unsigned long long>(eventRecord.Context3));
-        for (UINT32 i = 0; i < eventRecord.ArgCount && i < IXIPC_MAX_HOOK_ARGS; ++i)
+        for (UINT32 i = 0; i < eventRecord.ArgCount && i < SKUGGA_IPC_MAX_HOOK_ARGS; ++i)
         {
-            std::fprintf(ctx.EventsFile,
-                         "%s\"0x%llX\"",
-                         i == 0 ? "" : ",",
+            std::fprintf(ctx.EventsFile, "%s\"0x%llX\"", i == 0 ? "" : ",",
                          static_cast<unsigned long long>(eventRecord.Args[i]));
         }
         std::fputs("],\"sample\":\"", ctx.EventsFile);
@@ -308,9 +295,10 @@ namespace
         std::fputs("\"}\n", ctx.EventsFile);
     }
 
-    void CaptureSelfMapEventUnlocked(SelfHostContext &ctx, const IXIPC_HOOK_EVENT &eventRecord)
+    void CaptureSelfMapEventUnlocked(SelfHostContext &ctx, const SKUGGA_IPC_HOOK_EVENT &eventRecord)
     {
-        if (eventRecord.Kind != IxIpcHookEventIntegrity || eventRecord.Operation != IX_HOOK_EVENT_OP_IX_SELF_MAP_ENTRY)
+        if (eventRecord.Kind != SkuggaIpcHookEventIntegrity ||
+            eventRecord.Operation != IX_HOOK_EVENT_OP_IX_SELF_MAP_ENTRY)
         {
             return;
         }
@@ -349,26 +337,19 @@ namespace
             std::fprintf(ctx.SelfMapFile,
                          "%lu\t%lu\t%lu\t%s\t%s\t%s\t0x%llX\t0x%llX\t0x%08lX\t0x%llX\t0x%llX\t"
                          "0x%llX\t0x%llX\t0x%08lX\t0x%08lX\t0x%08lX\n",
-                         static_cast<unsigned long>(entry.Index),
-                         static_cast<unsigned long>(entry.Total),
-                         static_cast<unsigned long>(entry.Truncated),
-                         SelfMapKindName(entry.Kind),
-                         entry.Owner,
-                         entry.Name,
-                         static_cast<unsigned long long>(entry.Address),
-                         static_cast<unsigned long long>(entry.Size),
-                         static_cast<unsigned long>(entry.Flags),
+                         static_cast<unsigned long>(entry.Index), static_cast<unsigned long>(entry.Total),
+                         static_cast<unsigned long>(entry.Truncated), SelfMapKindName(entry.Kind), entry.Owner,
+                         entry.Name, static_cast<unsigned long long>(entry.Address),
+                         static_cast<unsigned long long>(entry.Size), static_cast<unsigned long>(entry.Flags),
                          static_cast<unsigned long long>(entry.Reference0),
                          static_cast<unsigned long long>(entry.Reference1),
                          static_cast<unsigned long long>(entry.AllocationBase),
-                         static_cast<unsigned long long>(entry.RegionSize),
-                         static_cast<unsigned long>(entry.Protect),
-                         static_cast<unsigned long>(entry.State),
-                         static_cast<unsigned long>(entry.Type));
+                         static_cast<unsigned long long>(entry.RegionSize), static_cast<unsigned long>(entry.Protect),
+                         static_cast<unsigned long>(entry.State), static_cast<unsigned long>(entry.Type));
         }
     }
 
-    void HandleSelfHostHookEvent(SelfHostContext &ctx, const IXIPC_HOOK_EVENT &eventRecord)
+    void HandleSelfHostHookEvent(SelfHostContext &ctx, const SKUGGA_IPC_HOOK_EVENT &eventRecord)
     {
         ctx.HookEvents.fetch_add(1, std::memory_order_relaxed);
 
@@ -387,7 +368,8 @@ namespace
             LeaveCriticalSection(&ctx.DiagnosticsLock);
         }
 
-        if (eventRecord.Kind == IxIpcHookEventIntegrity && eventRecord.Operation == IX_HOOK_EVENT_OP_IX_SELF_MAP_ENTRY)
+        if (eventRecord.Kind == SkuggaIpcHookEventIntegrity &&
+            eventRecord.Operation == IX_HOOK_EVENT_OP_IX_SELF_MAP_ENTRY)
         {
             ctx.SelfMapEvents.fetch_add(1, std::memory_order_relaxed);
         }
@@ -425,14 +407,13 @@ namespace
         {
             EnterCriticalSection(&ctx.DiagnosticsLock);
         }
-        std::fprintf(summary, "BLIND direct self-host diagnostic summary\n");
+        std::fprintf(summary, "SKUGGA direct self-host diagnostic summary\n");
         std::fprintf(summary, "pid=%lu\n", static_cast<unsigned long>(GetCurrentProcessId()));
-        std::fprintf(
-            summary, "ready_mask=0x%08lX\n", static_cast<unsigned long>(ctx.ReadyMask.load(std::memory_order_acquire)));
-        std::fprintf(
-            summary, "events=%lu\n", static_cast<unsigned long>(ctx.HookEvents.load(std::memory_order_acquire)));
-        std::fprintf(summary,
-                     "self_map_entries=%lu\n",
+        std::fprintf(summary, "ready_mask=0x%08lX\n",
+                     static_cast<unsigned long>(ctx.ReadyMask.load(std::memory_order_acquire)));
+        std::fprintf(summary, "events=%lu\n",
+                     static_cast<unsigned long>(ctx.HookEvents.load(std::memory_order_acquire)));
+        std::fprintf(summary, "self_map_entries=%lu\n",
                      static_cast<unsigned long>(ctx.SelfMapEvents.load(std::memory_order_acquire)));
         std::fprintf(summary, "runtime_log=%S\n", ctx.RuntimeLogPath.c_str());
         std::fprintf(summary, "events_file=%S\n", ctx.EventsPath.c_str());
@@ -444,8 +425,8 @@ namespace
         {
             if (ctx.EventKindCounts[kind] != 0)
             {
-                std::fprintf(
-                    summary, "  %s=%lu\n", KindName(kind), static_cast<unsigned long>(ctx.EventKindCounts[kind]));
+                std::fprintf(summary, "  %s=%lu\n", KindName(kind),
+                             static_cast<unsigned long>(ctx.EventKindCounts[kind]));
             }
         }
 
@@ -454,9 +435,7 @@ namespace
         {
             if (ctx.SelfMapKindCounts[kind] != 0)
             {
-                std::fprintf(summary,
-                             "  %s=%lu\n",
-                             SelfMapKindName(kind),
+                std::fprintf(summary, "  %s=%lu\n", SelfMapKindName(kind),
                              static_cast<unsigned long>(ctx.SelfMapKindCounts[kind]));
             }
         }
@@ -468,18 +447,18 @@ namespace
         std::fclose(summary);
     }
 
-    bool HandleSelfHostPacket(SelfHostContext &ctx, HANDLE pipe, const IXIPC_PACKET &request)
+    bool HandleSelfHostPacket(SelfHostContext &ctx, HANDLE pipe, const SKUGGA_IPC_PACKET &request)
     {
-        IXIPC_PACKET response{};
-        response.Magic = IXIPC_MAGIC;
-        response.Version = IXIPC_VERSION;
-        response.PacketType = IxIpcPacketResponse;
+        SKUGGA_IPC_PACKET response{};
+        response.Magic = SKUGGA_IPC_MAGIC;
+        response.Version = SKUGGA_IPC_VERSION;
+        response.PacketType = SkuggaIpcPacketResponse;
         response.Command = request.Command;
         response.Sequence = request.Sequence;
         response.Status = ERROR_SUCCESS;
 
-        if (request.Magic != IXIPC_MAGIC || request.Version != IXIPC_VERSION ||
-            request.PacketType != IxIpcPacketRequest)
+        if (request.Magic != SKUGGA_IPC_MAGIC || request.Version != SKUGGA_IPC_VERSION ||
+            request.PacketType != SkuggaIpcPacketRequest)
         {
             response.Status = ERROR_INVALID_DATA;
             return WritePacket(pipe, response);
@@ -487,36 +466,36 @@ namespace
 
         switch (request.Command)
         {
-        case IxIpcCommandHandshake:
-            response.Payload.HandshakeResponse.NegotiatedVersion = IXIPC_VERSION;
+        case SkuggaIpcCommandHandshake:
+            response.Payload.HandshakeResponse.NegotiatedVersion = SKUGGA_IPC_VERSION;
             response.Payload.HandshakeResponse.Capabilities = 1;
             break;
-        case IxIpcCommandNotifyHookReady:
+        case SkuggaIpcCommandNotifyHookReady:
         {
             DWORD localMask = request.Payload.NotifyHookReadyRequest.ReadyMask;
             DWORD observed = ctx.ReadyMask.fetch_or(localMask, std::memory_order_acq_rel) | localMask;
             response.Payload.NotifyHookReadyResponse.ProcessId = request.Payload.NotifyHookReadyRequest.ProcessId;
             response.Payload.NotifyHookReadyResponse.ObservedMask = observed;
-            response.Payload.NotifyHookReadyResponse.RequiredMask = IXIPC_HOOK_READY_REQUIRED_MASK;
+            response.Payload.NotifyHookReadyResponse.RequiredMask = SKUGGA_IPC_HOOK_READY_REQUIRED_MASK;
             response.Payload.NotifyHookReadyResponse.PendingCommand = 0;
-            std::printf("[target] blind ready mask=0x%08lX observed=0x%08lX\n", localMask, observed);
-            if ((observed & (IXIPC_HOOK_READY_FLAG_IPC_CONNECTED | IXIPC_HOOK_READY_FLAG_NT)) ==
-                (IXIPC_HOOK_READY_FLAG_IPC_CONNECTED | IXIPC_HOOK_READY_FLAG_NT))
+            std::printf("[target] skugga ready mask=0x%08lX observed=0x%08lX\n", localMask, observed);
+            if ((observed & (SKUGGA_IPC_HOOK_READY_FLAG_IPC_CONNECTED | SKUGGA_IPC_HOOK_READY_FLAG_NT)) ==
+                (SKUGGA_IPC_HOOK_READY_FLAG_IPC_CONNECTED | SKUGGA_IPC_HOOK_READY_FLAG_NT))
             {
                 SetEvent(ctx.ReadyEvent);
             }
             break;
         }
-        case IxIpcCommandQueryHookPolicy:
-            response.Payload.QueryHookPolicyResponse.PolicyVersion = IXIPC_HOOK_POLICY_VERSION;
+        case SkuggaIpcCommandQueryHookPolicy:
+            response.Payload.QueryHookPolicyResponse.PolicyVersion = SKUGGA_IPC_HOOK_POLICY_VERSION;
             break;
-        case IxIpcCommandPublishHookEvent:
+        case SkuggaIpcCommandPublishHookEvent:
             HandleSelfHostHookEvent(ctx, request.Payload.HookEvent);
             break;
-        case IxIpcCommandPublishHookEventBatch:
+        case SkuggaIpcCommandPublishHookEventBatch:
         {
             UINT32 count = request.Payload.HookEventBatch.Count;
-            if (count > IXIPC_MAX_HOOK_EVENT_BATCH)
+            if (count > SKUGGA_IPC_MAX_HOOK_EVENT_BATCH)
             {
                 response.Status = ERROR_INVALID_DATA;
                 break;
@@ -527,9 +506,9 @@ namespace
             }
             break;
         }
-        case IxIpcCommandRegisterInstrumentationRange:
-        case IxIpcCommandRegisterHookPatch:
-        case IxIpcCommandRegisterProcessInstrumentationCallback:
+        case SkuggaIpcCommandRegisterInstrumentationRange:
+        case SkuggaIpcCommandRegisterHookPatch:
+        case SkuggaIpcCommandRegisterProcessInstrumentationCallback:
             break;
         default:
             response.Status = ERROR_INVALID_FUNCTION;
@@ -542,17 +521,12 @@ namespace
     DWORD WINAPI SelfHostPipeThread(LPVOID parameter)
     {
         auto *ctx = static_cast<SelfHostContext *>(parameter);
-        HANDLE pipe = CreateNamedPipeW(ctx->PipeName.c_str(),
-                                       PIPE_ACCESS_DUPLEX,
-                                       PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-                                       1,
-                                       kPipeBufferBytes,
-                                       kPipeBufferBytes,
-                                       0,
-                                       nullptr);
+        HANDLE pipe = CreateNamedPipeW(ctx->PipeName.c_str(), PIPE_ACCESS_DUPLEX,
+                                       PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, 1, kPipeBufferBytes,
+                                       kPipeBufferBytes, 0, nullptr);
         if (pipe == INVALID_HANDLE_VALUE)
         {
-            std::printf("[target] blind self-host pipe failed gle=%lu\n", GetLastError());
+            std::printf("[target] skugga self-host pipe failed gle=%lu\n", GetLastError());
             SetEvent(ctx->ReadyEvent);
             return 1;
         }
@@ -567,7 +541,7 @@ namespace
 
         while (!ctx->Stop.load(std::memory_order_acquire))
         {
-            IXIPC_PACKET request{};
+            SKUGGA_IPC_PACKET request{};
             DWORD read = 0;
             if (!ReadFile(pipe, &request, sizeof(request), &read, nullptr) || read != sizeof(request))
             {
@@ -584,39 +558,39 @@ namespace
         return 0;
     }
 
-    bool ShouldSelfHostBlind()
+    bool ShouldSelfHostSkugga()
     {
         wchar_t value[8]{};
-        DWORD chars = GetEnvironmentVariableW(L"BLIND_RUNNER_OWNS_PIPE", value, RTL_NUMBER_OF(value));
+        DWORD chars = GetEnvironmentVariableW(L"SKUGGA_RUNNER_OWNS_PIPE", value, RTL_NUMBER_OF(value));
         return chars == 0;
     }
 
-    bool StartBlindSelfHost(SelfHostContext &ctx)
+    bool StartSkuggaSelfHost(SelfHostContext &ctx)
     {
-        if (!ShouldSelfHostBlind())
+        if (!ShouldSelfHostSkugga())
         {
             return false;
         }
 
         std::wstring baseDir = ModuleDirectory();
-        std::wstring dllPath = JoinPath(baseDir, L"BLIND.dll");
+        std::wstring dllPath = JoinPath(baseDir, L"SKUGGA.dll");
         if (GetFileAttributesW(dllPath.c_str()) == INVALID_FILE_ATTRIBUTES)
         {
-            std::printf("[target] BLIND.dll not found next to target; run BlindRunner.exe for instrumentation\n");
+            std::printf("[target] SKUGGA.dll not found next to target; run SkuggaRunner.exe for instrumentation\n");
             return false;
         }
 
         if (!OpenDirectDiagnostics(ctx, baseDir))
         {
-            std::printf("[target] blind self-host diagnostics failed\n");
+            std::printf("[target] skugga self-host diagnostics failed\n");
             CloseDirectDiagnostics(ctx);
             return false;
         }
         wchar_t logName[64]{};
-        swprintf_s(logName, L"blind-runtime-%lu.log", GetCurrentProcessId());
+        swprintf_s(logName, L"skugga-runtime-%lu.log", GetCurrentProcessId());
         ctx.RuntimeLogPath = JoinPath(ctx.LogDir, logName);
         ctx.PipeName = EffectivePipeName();
-        (void)SetEnvironmentVariableW(L"BLIND_LOG_DIR", ctx.LogDir.c_str());
+        (void)SetEnvironmentVariableW(L"SKUGGA_LOG_DIR", ctx.LogDir.c_str());
 
         ctx.ReadyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
         if (ctx.ReadyEvent == nullptr)
@@ -634,11 +608,11 @@ namespace
             return false;
         }
 
-        std::wprintf(L"[target] blind self-host diagnostics=%ls\n", ctx.RunDir.c_str());
-        ctx.Blind = LoadLibraryW(dllPath.c_str());
-        if (ctx.Blind == nullptr)
+        std::wprintf(L"[target] skugga self-host diagnostics=%ls\n", ctx.RunDir.c_str());
+        ctx.Skugga = LoadLibraryW(dllPath.c_str());
+        if (ctx.Skugga == nullptr)
         {
-            std::printf("[target] LoadLibrary(BLIND.dll) failed gle=%lu\n", GetLastError());
+            std::printf("[target] LoadLibrary(SKUGGA.dll) failed gle=%lu\n", GetLastError());
             ctx.Stop.store(true, std::memory_order_release);
             WaitForSingleObject(ctx.ServerThread, 1000);
             CloseHandle(ctx.ServerThread);
@@ -653,7 +627,7 @@ namespace
         return true;
     }
 
-    void StopBlindSelfHost(SelfHostContext &ctx)
+    void StopSkuggaSelfHost(SelfHostContext &ctx)
     {
         if (ctx.ServerThread == nullptr)
         {
@@ -665,14 +639,14 @@ namespace
         FlushDirectDiagnostics(ctx);
         WriteDirectSummary(ctx);
         DWORD serverWait = WaitForSingleObject(ctx.ServerThread, 1000);
-        std::printf("[target] blind events=%lu self_map=%lu ready=0x%08lX\n",
+        std::printf("[target] skugga events=%lu self_map=%lu ready=0x%08lX\n",
                     static_cast<unsigned long>(ctx.HookEvents.load(std::memory_order_acquire)),
                     static_cast<unsigned long>(ctx.SelfMapEvents.load(std::memory_order_acquire)),
                     static_cast<unsigned long>(ctx.ReadyMask.load(std::memory_order_acquire)));
-        std::wprintf(L"[target] blind events file=%ls\n", ctx.EventsPath.c_str());
-        std::wprintf(L"[target] blind selfmap file=%ls\n", ctx.SelfMapPath.c_str());
-        std::wprintf(L"[target] blind summary=%ls\n", ctx.SummaryPath.c_str());
-        std::wprintf(L"[target] blind runtime log=%ls\n", ctx.RuntimeLogPath.c_str());
+        std::wprintf(L"[target] skugga events file=%ls\n", ctx.EventsPath.c_str());
+        std::wprintf(L"[target] skugga selfmap file=%ls\n", ctx.SelfMapPath.c_str());
+        std::wprintf(L"[target] skugga summary=%ls\n", ctx.SummaryPath.c_str());
+        std::wprintf(L"[target] skugga runtime log=%ls\n", ctx.RuntimeLogPath.c_str());
         if (serverWait == WAIT_OBJECT_0)
         {
             CloseDirectDiagnostics(ctx);
@@ -772,23 +746,16 @@ namespace
     }
 
     LONG RunNtQueryInformationProcessProbeOnce(NtQueryInformationProcessProbeFn fn,
-                                               CliProbeProcessBasicInformation &info,
-                                               ULONG &returnLength)
+                                               CliProbeProcessBasicInformation &info, ULONG &returnLength)
     {
         return fn(GetCurrentProcess(), 0, &info, sizeof(info), &returnLength);
     }
 
-    int ValidateCliProbeStatus(const char *name,
-                               LONG status,
-                               const CliProbeProcessBasicInformation &info,
-                               ULONG returnLength,
-                               bool expectDeny,
-                               bool expectSilent)
+    int ValidateCliProbeStatus(const char *name, LONG status, const CliProbeProcessBasicInformation &info,
+                               ULONG returnLength, bool expectDeny, bool expectSilent)
     {
-        std::printf("[target] %s status=0x%08lX pid_field=0x%llX return_len=0x%08lX\n",
-                    name,
-                    static_cast<unsigned long>(status),
-                    static_cast<unsigned long long>(info.UniqueProcessId),
+        std::printf("[target] %s status=0x%08lX pid_field=0x%llX return_len=0x%08lX\n", name,
+                    static_cast<unsigned long>(status), static_cast<unsigned long long>(info.UniqueProcessId),
                     static_cast<unsigned long>(returnLength));
 
         if (expectDeny)
@@ -835,8 +802,7 @@ namespace
             std::memset(&info, 0, sizeof(info));
             returnLength = 0;
             status = RunNtQueryInformationProcessProbeOnce(fn, info, returnLength);
-            std::printf("[target] cli_probe_duplicate[%lu] status=0x%08lX\n",
-                        static_cast<unsigned long>(i),
+            std::printf("[target] cli_probe_duplicate[%lu] status=0x%08lX\n", static_cast<unsigned long>(i),
                         static_cast<unsigned long>(status));
         }
         return status == 0 ? 0 : 44;
@@ -994,7 +960,7 @@ namespace
         }
 
         PVOID context = nullptr;
-        HRESULT hr = amsiInitialize(L"BLINDProbe", &context);
+        HRESULT hr = amsiInitialize(L"SKUGGAProbe", &context);
         if (FAILED(hr) || context == nullptr)
         {
             std::printf("[target] lazy_amsi init hr=0x%08lX\n", static_cast<unsigned long>(hr));
@@ -1007,28 +973,22 @@ namespace
             (void)amsiOpenSession(context, &session);
         }
 
-        const char sample[] = "Write-Host blind lazy amsi probe";
+        const char sample[] = "Write-Host skugga lazy amsi probe";
         ULONG result = 0;
-        hr = amsiScanBuffer(context,
-                            const_cast<char *>(sample),
-                            static_cast<ULONG>(sizeof(sample) - 1),
-                            L"blind-lazy-amsi.ps1",
-                            session,
-                            &result);
+        hr = amsiScanBuffer(context, const_cast<char *>(sample), static_cast<ULONG>(sizeof(sample) - 1),
+                            L"skugga-lazy-amsi.ps1", session, &result);
         if (amsiScanString != nullptr)
         {
             ULONG stringResult = 0;
-            (void)amsiScanString(
-                context, L"Write-Host blind lazy amsi string", L"blind-lazy-amsi-string.ps1", session, &stringResult);
+            (void)amsiScanString(context, L"Write-Host skugga lazy amsi string", L"skugga-lazy-amsi-string.ps1",
+                                 session, &stringResult);
         }
         if (amsiNotifyOperation != nullptr)
         {
             ULONG notifyResult = 0;
-            const char notifySample[] = "blind lazy amsi notify";
-            (void)amsiNotifyOperation(context,
-                                      const_cast<char *>(notifySample),
-                                      static_cast<ULONG>(sizeof(notifySample) - 1),
-                                      L"blind-lazy-amsi-notify",
+            const char notifySample[] = "skugga lazy amsi notify";
+            (void)amsiNotifyOperation(context, const_cast<char *>(notifySample),
+                                      static_cast<ULONG>(sizeof(notifySample) - 1), L"skugga-lazy-amsi-notify",
                                       &notifyResult);
         }
 
@@ -1037,8 +997,7 @@ namespace
             amsiCloseSession(context, session);
         }
         amsiUninitialize(context);
-        std::printf("[target] lazy_amsi scan hr=0x%08lX result=0x%08lX\n",
-                    static_cast<unsigned long>(hr),
+        std::printf("[target] lazy_amsi scan hr=0x%08lX result=0x%08lX\n", static_cast<unsigned long>(hr),
                     static_cast<unsigned long>(result));
         return 0;
     }
@@ -1081,8 +1040,7 @@ namespace
         {
             (void)eventUnregister(regHandle);
         }
-        std::printf("[target] lazy_etw register status=0x%08lX handle=0x%llX\n",
-                    static_cast<unsigned long>(status),
+        std::printf("[target] lazy_etw register status=0x%08lX handle=0x%llX\n", static_cast<unsigned long>(status),
                     static_cast<unsigned long long>(regHandle));
         return 0;
     }
@@ -1160,8 +1118,7 @@ namespace
         if (process == nullptr)
         {
             std::printf("[target] remote_handles OpenProcess(%lu) failed gle=%lu\n",
-                        static_cast<unsigned long>(parentPid),
-                        GetLastError());
+                        static_cast<unsigned long>(parentPid), GetLastError());
             return 78;
         }
 
@@ -1198,14 +1155,9 @@ namespace
 
         std::printf("[target] remote_handles parent_pid=%lu process=%p thread_id=%lu thread=%p peb=%p "
                     "query=%llu read=%llu read_ok=%lu\n",
-                    static_cast<unsigned long>(parentPid),
-                    process,
-                    static_cast<unsigned long>(threadId),
-                    thread,
-                    info.PebBaseAddress,
-                    static_cast<unsigned long long>(queried),
-                    static_cast<unsigned long long>(bytesRead),
-                    static_cast<unsigned long>(readOk != FALSE));
+                    static_cast<unsigned long>(parentPid), process, static_cast<unsigned long>(threadId), thread,
+                    info.PebBaseAddress, static_cast<unsigned long long>(queried),
+                    static_cast<unsigned long long>(bytesRead), static_cast<unsigned long>(readOk != FALSE));
 
         if (thread != nullptr)
         {
@@ -1265,10 +1217,8 @@ namespace
             volatile const DWORD *eatSlot = &functions[ordinal];
             DWORD rva = *eatSlot;
             const void *proc = base + rva;
-            std::printf("[target] ntdll_eat_read NtClose slot=%p rva=0x%08lX proc=%p\n",
-                        eatSlot,
-                        static_cast<unsigned long>(rva),
-                        proc);
+            std::printf("[target] ntdll_eat_read NtClose slot=%p rva=0x%08lX proc=%p\n", eatSlot,
+                        static_cast<unsigned long>(rva), proc);
             return rva != 0 ? 0 : 75;
         }
 
@@ -1286,13 +1236,9 @@ namespace
         }
 
         const unsigned char stub[] = {
-            0x4C,
-            0x8B,
+            0x4C, 0x8B,
             0xD1, // mov r10, rcx
-            0xB8,
-            0x34,
-            0x12,
-            0x00,
+            0xB8, 0x34, 0x12, 0x00,
             0x00, // mov eax,1234h
             0x0F,
             0x05, // syscall
@@ -1321,8 +1267,8 @@ namespace
 
 int wmain(int argc, wchar_t **argv)
 {
-    SelfHostContext blind{};
-    bool selfHosted = StartBlindSelfHost(blind);
+    SelfHostContext skugga{};
+    bool selfHosted = StartSkuggaSelfHost(skugga);
 
     bool cliProbeDirect = false;
     bool cliProbeDuplicates = false;
@@ -1364,7 +1310,7 @@ int wmain(int argc, wchar_t **argv)
             expectSilent = true;
     }
 
-    std::printf("[target] BLIND owned test target start pid=%lu\n", GetCurrentProcessId());
+    std::printf("[target] SKUGGA owned test target start pid=%lu\n", GetCurrentProcessId());
     Sleep(1000);
     if (cliProbeDirect || cliProbeDuplicates || cliProbePrivate || cliProbeProtectChurn || cliProbeLazyAmsi ||
         cliProbeLazyEtw || cliProbeLazyWinsock || cliProbeRemoteHandles || cliProbeNtdllEatRead ||
@@ -1395,7 +1341,7 @@ int wmain(int argc, wchar_t **argv)
         Sleep(250);
         if (selfHosted)
         {
-            StopBlindSelfHost(blind);
+            StopSkuggaSelfHost(skugga);
         }
         ExitProcess(static_cast<UINT>(probeExit));
     }
@@ -1407,7 +1353,7 @@ int wmain(int argc, wchar_t **argv)
     std::printf("[target] done\n");
     if (selfHosted)
     {
-        StopBlindSelfHost(blind);
+        StopSkuggaSelfHost(skugga);
     }
     ExitProcess(0);
 }

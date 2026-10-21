@@ -78,8 +78,7 @@ namespace IC_STACKTRACE
     void InitCallerClassifier(void *anyFnInOwnModule) noexcept;
     void RegisterOwnExecutableRange(void *base, std::size_t size) noexcept;
 
-    void SetAnalysisSubjectMetadata(std::uint32_t subjectKind,
-                                    const wchar_t *subjectPath,
+    void SetAnalysisSubjectMetadata(std::uint32_t subjectKind, const wchar_t *subjectPath,
                                     const wchar_t *hostPath) noexcept;
 
     CallerClassification ClassifyTrace(const Trace &trace) noexcept;

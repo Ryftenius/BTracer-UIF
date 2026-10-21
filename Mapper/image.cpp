@@ -1,18 +1,18 @@
-﻿#include "internal.h"
+#include "internal.h"
 
-namespace blind::mapper
+namespace skugga::mapper
 {
     bool Fail(ServerContext &ctx, const char *message)
     {
         HostDebugLog(ctx, "manual-map: %s", message);
-        ColorPrintf(LogColor::Error, "[blind] manual-map: %s\n", message);
+        ColorPrintf(LogColor::Error, "[skugga] manual-map: %s\n", message);
         return false;
     }
 
     bool FailLastError(ServerContext &ctx, const char *operation, DWORD gle)
     {
         HostDebugLog(ctx, "manual-map: %s failed gle=%lu", operation, gle);
-        ColorPrintf(LogColor::Error, "[blind] manual-map: %s failed gle=%lu\n", operation, gle);
+        ColorPrintf(LogColor::Error, "[skugga] manual-map: %s failed gle=%lu\n", operation, gle);
         return false;
     }
 
@@ -197,8 +197,8 @@ namespace blind::mapper
                 std::min<std::size_t>(section.SizeOfRawData, std::min(rawRemaining, imageRemaining));
             if (copyBytes != 0)
             {
-                std::memcpy(
-                    mapped.Image.data() + section.VirtualAddress, raw.data() + section.PointerToRawData, copyBytes);
+                std::memcpy(mapped.Image.data() + section.VirtualAddress, raw.data() + section.PointerToRawData,
+                            copyBytes);
             }
         }
 
@@ -208,4 +208,4 @@ namespace blind::mapper
         }
         return true;
     }
-} // namespace blind::mapper
+} // namespace skugga::mapper

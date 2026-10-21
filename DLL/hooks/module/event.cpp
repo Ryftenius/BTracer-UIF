@@ -33,18 +33,9 @@ namespace IX_MODULE_INTERNAL
 
         __try
         {
-            int chars = swprintf_s(buffer,
-                                   32,
-                                   L"%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX",
-                                   static_cast<unsigned long>(guid->Data1),
-                                   guid->Data2,
-                                   guid->Data3,
-                                   guid->Data4[0],
-                                   guid->Data4[1],
-                                   guid->Data4[2],
-                                   guid->Data4[3],
-                                   guid->Data4[4],
-                                   guid->Data4[5]);
+            int chars = swprintf_s(buffer, 32, L"%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX",
+                                   static_cast<unsigned long>(guid->Data1), guid->Data2, guid->Data3, guid->Data4[0],
+                                   guid->Data4[1], guid->Data4[2], guid->Data4[3], guid->Data4[4], guid->Data4[5]);
             return chars > 1;
         }
         __except (EXCEPTION_EXECUTE_HANDLER)
@@ -104,17 +95,9 @@ namespace IX_MODULE_INTERNAL
         }
     }
 
-    void PublishModuleEvent(ModuleHookOperation operation,
-                            const char *functionName,
-                            const char *sourceModule,
-                            HMODULE moduleHandle,
-                            const void *nameBuffer,
-                            std::size_t nameLength,
-                            std::uint64_t arg0,
-                            std::uint64_t arg1,
-                            std::uint64_t arg2,
-                            std::uint64_t arg3,
-                            void *caller) noexcept
+    void PublishModuleEvent(ModuleHookOperation operation, const char *functionName, const char *sourceModule,
+                            HMODULE moduleHandle, const void *nameBuffer, std::size_t nameLength, std::uint64_t arg0,
+                            std::uint64_t arg1, std::uint64_t arg2, std::uint64_t arg3, void *caller) noexcept
     {
         if (IsModuleHookReentered() || IxIsInternalCall() || g_ActiveCallback == nullptr)
         {

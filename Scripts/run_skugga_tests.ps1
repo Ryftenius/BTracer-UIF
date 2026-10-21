@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Bin = Join-Path $Root "bin\$Configuration\$Platform"
-$env:BLIND_TEST_NO_NEW_CONSOLE = "1"
+$env:SKUGGA_TEST_NO_NEW_CONSOLE = "1"
 $Script:Passed = 0
 $Script:Failed = 0
 $Script:Skipped = 0
@@ -68,7 +68,7 @@ function Invoke-CapturedProcess {
         [int]$Timeout = $TimeoutSeconds
     )
 
-    $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("blind-test-runner-" + [Guid]::NewGuid().ToString("N"))
+    $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("skugga-test-runner-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $tempRoot | Out-Null
     $stdoutPath = Join-Path $tempRoot "stdout.txt"
     $stderrPath = Join-Path $tempRoot "stderr.txt"
@@ -82,7 +82,7 @@ function Invoke-CapturedProcess {
         $psi.CreateNoWindow = $true
         $process = [System.Diagnostics.Process]::Start($psi)
         if (-not $process.WaitForExit($Timeout * 1000)) {
-            try { $process.Kill() } catch {}
+            try { & taskkill.exe /PID $process.Id /T /F 2>&1 | Out-Null } catch {}
             throw "TIMEOUT after ${Timeout}s"
         }
 
@@ -162,7 +162,7 @@ function Invoke-CompiledVerifier {
     }
 
     Invoke-Step "compiled CLI verifier" {
-        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "verify_blind_cli.ps1"),
+        $args = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $PSScriptRoot "verify_skugga_cli.ps1"),
                   "-Configuration", $Configuration, "-Platform", $Platform,
                   "-TimeoutSeconds", $TimeoutSeconds, "-ProbeTarget")
         if (-not $NoBuild) {
@@ -171,7 +171,7 @@ function Invoke-CompiledVerifier {
 
         & powershell.exe @args
         if ($LASTEXITCODE -ne 0) {
-            throw "verify_blind_cli.ps1 failed with exit code $LASTEXITCODE"
+            throw "verify_skugga_cli.ps1 failed with exit code $LASTEXITCODE"
         }
     }
 }
@@ -182,9 +182,9 @@ function Test-Connectivity {
         return
     }
 
-    $runner = Join-Path $Bin "BlindRunner.exe"
-    $sdkHost = Join-Path $Bin "BlindSdkHost.exe"
-    $target = Join-Path $Bin "BlindTestTarget.exe"
+    $runner = Join-Path $Bin "SkuggaRunner.exe"
+    $sdkHost = Join-Path $Bin "SkuggaSdkHost.exe"
+    $target = Join-Path $Bin "SkuggaTestTarget.exe"
     if (-not (Test-Path $runner) -or -not (Test-Path $sdkHost) -or -not (Test-Path $target)) {
         Skip "connectivity smoke" "compiled binaries are missing under $Bin"
         return
@@ -192,10 +192,10 @@ function Test-Connectivity {
 
     Invoke-Step "runner pipe connectivity" {
         $r = Invoke-CapturedProcess -Name "runner pipe" -File $runner -ArgumentLine "--cli --color=never --timeout 20s $(Quote-CmdArg $target) --lhook NtQueryInformationProcess" -Timeout 30
-        Assert-OutputContains $r "hook client connected" "runner did not accept a BLIND hook client connection"
-        Assert-OutputContains $r "ready wait=0" "runner did not receive the ready notification"
+        Assert-OutputContains $r "telemetry_client=connected" "runner did not accept a SKUGGA hook client connection"
+        Assert-OutputContains $r "\[skugga:ready\] wait=0" "runner did not receive the ready notification"
         Assert-OutputContains $r "NtQueryInformationProcess hit" "runner did not receive the expected hook event"
-        Assert-OutputContains $r "child exit=0x00000000" "runner child probe did not exit cleanly"
+        Assert-OutputContains $r "\[skugga:result\] exit=0x00000000" "runner child probe did not exit cleanly"
     }
 
     if ($Configuration -ne "Release") {
@@ -204,15 +204,22 @@ function Test-Connectivity {
     }
 
     Invoke-Step "guarded launch-gate connectivity" {
-        $r = Invoke-CapturedProcess -Name "guarded launch gate" -File $runner -ArgumentLine "--launch-gate --timeout 20s --color=never" -Timeout 30
-        Assert-OutputContains $r "launch_gate=1 guarded=1" "guarded launch-gate mode was not enabled"
-        Assert-OutputContains $r "child exit=0x00000000" "guarded launch-gate target did not exit cleanly"
+        if ($Platform -eq "Win32") {
+            $r = Invoke-CapturedProcess -Name "x86 launch gate fallback" -File $runner -ArgumentLine "--cli --launch-gate --timeout 20s --color=never $(Quote-CmdArg $target) --lhook NtQueryInformationProcess" -Timeout 30
+            Assert-OutputContains $r "guarded launch gate is unavailable on x86" "x86 launch-gate fallback was not reported"
+            Assert-OutputContains $r "gate=1 guarded=0" "x86 suspended pre-entry fallback was not enabled"
+        }
+        else {
+            $r = Invoke-CapturedProcess -Name "guarded launch gate" -File $runner -ArgumentLine "--launch-gate --timeout 20s --color=never" -Timeout 30
+            Assert-OutputContains $r "gate=1 guarded=1" "guarded launch-gate mode was not enabled"
+        }
+        Assert-OutputContains $r "\[skugga:result\] exit=0x00000000" "guarded launch-gate target did not exit cleanly"
     }
 
     Invoke-Step "SDK host pipe connectivity" {
-        $pipe = "\\.\pipe\BLIND_SDK_TEST_$([Guid]::NewGuid().ToString("N"))"
+        $pipe = "\\.\pipe\SKUGGA_SDK_TEST_$([Guid]::NewGuid().ToString("N"))"
         $r = Invoke-CapturedProcess -Name "sdk host" -File $sdkHost -ArgumentLine "--ready-any --pipe $(Quote-CmdArg $pipe) $(Quote-CmdArg $target) -- --cli-probe-direct" -Timeout 45
-        Assert-OutputContains $r "BLIND client connected" "SDK host did not accept a BLIND client connection"
+        Assert-OutputContains $r "SKUGGA client connected" "SDK host did not accept a SKUGGA client connection"
         Assert-OutputContains $r "ready wait=0" "SDK host did not receive the ready notification"
         Assert-OutputContains $r "events=[1-9]" "SDK host did not receive hook events"
         Assert-OutputContains $r "child_exit=0x00000000" "SDK host child probe did not exit cleanly"
@@ -242,11 +249,11 @@ function Test-BinaryMitigations {
     }
 
     $binaries = @(
-        "BLIND.dll",
-        "BlindRunner.exe",
-        "BlindTestTarget.exe",
-        "BlindLaunchGateTarget.exe",
-        "BlindSdkHost.exe"
+        "SKUGGA.dll",
+        "SkuggaRunner.exe",
+        "SkuggaTestTarget.exe",
+        "SkuggaLaunchGateTarget.exe",
+        "SkuggaSdkHost.exe"
     ) | ForEach-Object { Join-Path $Bin $_ }
 
     foreach ($binary in $binaries) {

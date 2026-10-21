@@ -1,6 +1,6 @@
 #pragma once
-#ifndef IX_BLIND_VEH_H
-#define IX_BLIND_VEH_H
+#ifndef IX_SKUGGA_VEH_H
+#define IX_SKUGGA_VEH_H
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -12,13 +12,13 @@
 
 #include <cstdint>
 #include <cstddef>
-#ifndef IX_BLIND_API
-#ifdef IX_BLIND_EXPORTS
-#define IX_BLIND_API extern "C" __declspec(dllexport)
-#elif defined(IX_BLIND_IMPORTS)
-#define IX_BLIND_API extern "C" __declspec(dllimport)
+#ifndef IX_SKUGGA_API
+#ifdef IX_SKUGGA_EXPORTS
+#define IX_SKUGGA_API extern "C" __declspec(dllexport)
+#elif defined(IX_SKUGGA_IMPORTS)
+#define IX_SKUGGA_API extern "C" __declspec(dllimport)
 #else
-#define IX_BLIND_API extern "C"
+#define IX_SKUGGA_API extern "C"
 #endif
 #endif
 
@@ -95,14 +95,14 @@ namespace ix::IX
         bool swallow_non_target_exceptions = false;
     };
 } // namespace ix::IX
-using IxBlindEvent = ix::IX::Event;
-using IxBlindTelemetryArguments = ix::IX::TelemetryArguments;
-using IxBlindTelemetryFn = ix::IX::TelemetryFn;
-using IxBlindMemoryFaultHandlerFn = ix::IX::MemoryFaultHandlerFn;
-IX_BLIND_API PVOID IxRegisterVectoredExceptionHandler(IxBlindTelemetryArguments *args) noexcept;
-IX_BLIND_API BOOL IxPromoteVectoredExceptionHandlerToFront() noexcept;
-IX_BLIND_API void IxUnregisterVectoredExceptionHandler() noexcept;
-inline PVOID IxRegisterVectordExceptionHandler(IxBlindTelemetryArguments *args) noexcept
+using IxSkuggaEvent = ix::IX::Event;
+using IxSkuggaTelemetryArguments = ix::IX::TelemetryArguments;
+using IxSkuggaTelemetryFn = ix::IX::TelemetryFn;
+using IxSkuggaMemoryFaultHandlerFn = ix::IX::MemoryFaultHandlerFn;
+IX_SKUGGA_API PVOID IxRegisterVectoredExceptionHandler(IxSkuggaTelemetryArguments *args) noexcept;
+IX_SKUGGA_API BOOL IxPromoteVectoredExceptionHandlerToFront() noexcept;
+IX_SKUGGA_API void IxUnregisterVectoredExceptionHandler() noexcept;
+inline PVOID IxRegisterVectordExceptionHandler(IxSkuggaTelemetryArguments *args) noexcept
 {
     return IxRegisterVectoredExceptionHandler(args);
 }
@@ -112,7 +112,7 @@ inline void IxUnregisterVectordExceptionHandler() noexcept
     IxUnregisterVectoredExceptionHandler();
 }
 
-#define BLIND_SDK_VEH_VERSION_MAJOR 0u
-#define BLIND_SDK_VEH_VERSION_MINOR 1u
+#define SKUGGA_SDK_VEH_VERSION_MAJOR 0u
+#define SKUGGA_SDK_VEH_VERSION_MINOR 1u
 
 #endif

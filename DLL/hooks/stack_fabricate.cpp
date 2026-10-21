@@ -20,8 +20,7 @@ namespace IX_STACK_FABRICATE
 
         HMODULE module = nullptr;
         if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                               reinterpret_cast<LPCSTR>(&OwnModule),
-                               &module))
+                               reinterpret_cast<LPCSTR>(&OwnModule), &module))
         {
             auto *base = reinterpret_cast<std::uint8_t *>(module);
             auto *dos = reinterpret_cast<const IMAGE_DOS_HEADER *>(base);
@@ -45,7 +44,7 @@ namespace IX_STACK_FABRICATE
         return s_ownModule;
     }
 
-    void SanitizeBlindFrames(IC_STACKTRACE::Trace &trace) noexcept
+    void SanitizeSkuggaFrames(IC_STACKTRACE::Trace &trace) noexcept
     {
         OwnModuleRange ownModule = OwnModule();
         if (ownModule.Base == 0 || ownModule.End == 0 || trace.Count == 0)

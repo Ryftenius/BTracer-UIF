@@ -1,4 +1,4 @@
-﻿#ifndef WIN32_LEAN_AND_MEAN
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #ifndef NOMINMAX
@@ -8,7 +8,8 @@
 #include <Windows.h>
 #include <strsafe.h>
 
-#include <blind/blind_ipc.h>
+#include <skugga/skugga_ipc.h>
+#include "../../../ABI/packet_validation.h"
 #include "../../../DLL/support/win32_util.h"
 
 #include <atomic>
@@ -35,28 +36,26 @@ namespace
         std::wstring PipeName;
     };
 
-    using BLIND_SUPPORT::EffectivePipeName;
-    using BLIND_SUPPORT::EnvironmentVariableEnabled;
-    using BLIND_SUPPORT::FileExists;
-    using BLIND_SUPPORT::JoinPath;
-    using BLIND_SUPPORT::KindName;
-    using BLIND_SUPPORT::ModuleDirectory;
-    using BLIND_SUPPORT::QuotePath;
-    using BLIND_SUPPORT::WritePacket;
+    using SKUGGA_SUPPORT::EffectivePipeName;
+    using SKUGGA_SUPPORT::EnvironmentVariableEnabled;
+    using SKUGGA_SUPPORT::FileExists;
+    using SKUGGA_SUPPORT::JoinPath;
+    using SKUGGA_SUPPORT::KindName;
+    using SKUGGA_SUPPORT::ModuleDirectory;
+    using SKUGGA_SUPPORT::QuotePath;
+    using SKUGGA_SUPPORT::WritePacket;
 
-    void PrintHookEvent(const IXIPC_HOOK_EVENT &eventRecord)
+    void PrintHookEvent(const SKUGGA_IPC_HOOK_EVENT &eventRecord)
     {
         std::printf("[sdk-host] event pid=%lu tid=%lu kind=%s op=%lu api=%s module=%s caller=0x%llX\n",
-                    static_cast<unsigned long>(eventRecord.ProcessId),
-                    static_cast<unsigned long>(eventRecord.ThreadId),
-                    KindName(eventRecord.Kind),
-                    static_cast<unsigned long>(eventRecord.Operation),
+                    static_cast<unsigned long>(eventRecord.ProcessId), static_cast<unsigned long>(eventRecord.ThreadId),
+                    KindName(eventRecord.Kind), static_cast<unsigned long>(eventRecord.Operation),
                     eventRecord.ApiName[0] != '\0' ? eventRecord.ApiName : "<none>",
                     eventRecord.ModuleName[0] != '\0' ? eventRecord.ModuleName : "<none>",
                     static_cast<unsigned long long>(eventRecord.Caller));
     }
 
-    void HandleHookEvent(HostState &state, const IXIPC_HOOK_EVENT &eventRecord)
+    void HandleHookEvent(HostState &state, const SKUGGA_IPC_HOOK_EVENT &eventRecord)
     {
         const DWORD current = state.EventCount.fetch_add(1, std::memory_order_relaxed) + 1;
         if (state.Verbose || current <= 16)
@@ -69,18 +68,18 @@ namespace
         }
     }
 
-    bool HandlePacket(HostState &state, HANDLE pipe, const IXIPC_PACKET &request)
+    bool HandlePacket(HostState &state, HANDLE pipe, const SKUGGA_IPC_PACKET &request)
     {
-        IXIPC_PACKET response{};
-        response.Magic = IXIPC_MAGIC;
-        response.Version = IXIPC_VERSION;
-        response.PacketType = IxIpcPacketResponse;
+        SKUGGA_IPC_PACKET response{};
+        response.Magic = SKUGGA_IPC_MAGIC;
+        response.Version = SKUGGA_IPC_VERSION;
+        response.PacketType = SkuggaIpcPacketResponse;
         response.Command = request.Command;
         response.Sequence = request.Sequence;
         response.Status = ERROR_SUCCESS;
 
-        if (request.Magic != IXIPC_MAGIC || request.Version != IXIPC_VERSION ||
-            request.PacketType != IxIpcPacketRequest)
+        if (request.Magic != SKUGGA_IPC_MAGIC || request.Version != SKUGGA_IPC_VERSION ||
+            request.PacketType != SkuggaIpcPacketRequest || !SkuggaValidEventPacket(request))
         {
             response.Status = ERROR_INVALID_DATA;
             return WritePacket(pipe, response);
@@ -88,38 +87,37 @@ namespace
 
         switch (request.Command)
         {
-        case IxIpcCommandHandshake:
-            response.Payload.HandshakeResponse.NegotiatedVersion = IXIPC_VERSION;
+        case SkuggaIpcCommandHandshake:
+            response.Payload.HandshakeResponse.NegotiatedVersion = SKUGGA_IPC_VERSION;
             response.Payload.HandshakeResponse.Capabilities = 1;
             break;
-        case IxIpcCommandNotifyHookReady:
+        case SkuggaIpcCommandNotifyHookReady:
         {
             const DWORD localMask = request.Payload.NotifyHookReadyRequest.ReadyMask;
             const DWORD observed = state.ReadyMask.fetch_or(localMask, std::memory_order_acq_rel) | localMask;
             response.Payload.NotifyHookReadyResponse.ProcessId = request.Payload.NotifyHookReadyRequest.ProcessId;
             response.Payload.NotifyHookReadyResponse.ObservedMask = observed;
-            response.Payload.NotifyHookReadyResponse.RequiredMask = BLIND_SDK_READY_CORE_MASK;
+            response.Payload.NotifyHookReadyResponse.RequiredMask = SKUGGA_SDK_READY_CORE_MASK;
             response.Payload.NotifyHookReadyResponse.PendingCommand = 0;
             std::printf("[sdk-host] ready pid=%lu mask=0x%08lX observed=0x%08lX\n",
                         static_cast<unsigned long>(request.Payload.NotifyHookReadyRequest.ProcessId),
-                        static_cast<unsigned long>(localMask),
-                        static_cast<unsigned long>(observed));
-            if (state.ReadyAnySatisfies || (observed & BLIND_SDK_READY_CORE_MASK) == BLIND_SDK_READY_CORE_MASK)
+                        static_cast<unsigned long>(localMask), static_cast<unsigned long>(observed));
+            if (state.ReadyAnySatisfies || (observed & SKUGGA_SDK_READY_CORE_MASK) == SKUGGA_SDK_READY_CORE_MASK)
             {
                 SetEvent(state.ReadyEvent);
             }
             break;
         }
-        case IxIpcCommandQueryHookPolicy:
-            response.Payload.QueryHookPolicyResponse.PolicyVersion = IXIPC_HOOK_POLICY_VERSION;
+        case SkuggaIpcCommandQueryHookPolicy:
+            response.Payload.QueryHookPolicyResponse.PolicyVersion = SKUGGA_IPC_HOOK_POLICY_VERSION;
             break;
-        case IxIpcCommandPublishHookEvent:
+        case SkuggaIpcCommandPublishHookEvent:
             HandleHookEvent(state, request.Payload.HookEvent);
             break;
-        case IxIpcCommandPublishHookEventBatch:
+        case SkuggaIpcCommandPublishHookEventBatch:
         {
             const UINT32 count = request.Payload.HookEventBatch.Count;
-            if (count > IXIPC_MAX_HOOK_EVENT_BATCH)
+            if (count > SKUGGA_IPC_MAX_HOOK_EVENT_BATCH)
             {
                 response.Status = ERROR_INVALID_DATA;
                 break;
@@ -130,9 +128,9 @@ namespace
             }
             break;
         }
-        case IxIpcCommandRegisterInstrumentationRange:
-        case IxIpcCommandRegisterHookPatch:
-        case IxIpcCommandRegisterProcessInstrumentationCallback:
+        case SkuggaIpcCommandRegisterInstrumentationRange:
+        case SkuggaIpcCommandRegisterHookPatch:
+        case SkuggaIpcCommandRegisterProcessInstrumentationCallback:
             break;
         default:
             response.Status = ERROR_INVALID_FUNCTION;
@@ -145,14 +143,10 @@ namespace
     DWORD WINAPI PipeServerThread(LPVOID parameter)
     {
         auto *state = static_cast<HostState *>(parameter);
-        HANDLE pipe = CreateNamedPipeW(state->PipeName.c_str(),
-                                       PIPE_ACCESS_DUPLEX,
-                                       PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-                                       1,
-                                       kPipeBufferBytes,
-                                       kPipeBufferBytes,
-                                       0,
-                                       nullptr);
+        HANDLE pipe =
+            CreateNamedPipeW(state->PipeName.c_str(), PIPE_ACCESS_DUPLEX,
+                             PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1,
+                             kPipeBufferBytes, kPipeBufferBytes, 0, nullptr);
         if (pipe == INVALID_HANDLE_VALUE)
         {
             std::printf("[sdk-host] CreateNamedPipe failed gle=%lu\n", GetLastError());
@@ -170,10 +164,10 @@ namespace
             return 1;
         }
 
-        std::printf("[sdk-host] BLIND client connected\n");
+        std::printf("[sdk-host] SKUGGA client connected\n");
         while (!state->Stop.load(std::memory_order_acquire))
         {
-            IXIPC_PACKET request{};
+            SKUGGA_IPC_PACKET request{};
             DWORD read = 0;
             if (!ReadFile(pipe, &request, sizeof(request), &read, nullptr))
             {
@@ -238,8 +232,8 @@ namespace
                     }
                     else
                     {
-                        std::printf(
-                            "[sdk-host] LoadLibrary wait=%lu exit=0x%08lX gle=%lu\n", wait, exitCode, GetLastError());
+                        std::printf("[sdk-host] LoadLibrary wait=%lu exit=0x%08lX gle=%lu\n", wait, exitCode,
+                                    GetLastError());
                     }
                     CloseHandle(thread);
                 }
@@ -269,8 +263,8 @@ namespace
 int wmain(int argc, wchar_t **argv)
 {
     std::wstring baseDir = ModuleDirectory();
-    std::wstring dllPath = JoinPath(baseDir, L"BLIND.dll");
-    std::wstring targetPath = JoinPath(baseDir, L"BlindTestTarget.exe");
+    std::wstring dllPath = JoinPath(baseDir, L"SKUGGA.dll");
+    std::wstring targetPath = JoinPath(baseDir, L"SkuggaTestTarget.exe");
 
     HostState state{};
     bool targetSet = false;
@@ -285,9 +279,9 @@ int wmain(int argc, wchar_t **argv)
         }
         if (wcscmp(argv[argIndex], L"--help") == 0)
         {
-            std::wprintf(L"Usage: BlindSdkHost.exe [--verbose] [--ready-any] [--pipe \\\\.\\pipe\\Name] "
+            std::wprintf(L"Usage: SkuggaSdkHost.exe [--verbose] [--ready-any] [--pipe \\\\.\\pipe\\Name] "
                          L"[owned-test-exe] [-- args...]\n");
-            std::wprintf(L"Hosts the BLIND IPC pipe and loads BLIND.dll into a child process it creates.\n");
+            std::wprintf(L"Hosts the SKUGGA IPC pipe and loads SKUGGA.dll into a child process it creates.\n");
             return 0;
         }
         if (wcscmp(argv[argIndex], L"--") == 0)
@@ -312,7 +306,7 @@ int wmain(int argc, wchar_t **argv)
                 std::wprintf(L"[sdk-host] --pipe requires a named-pipe path\n");
                 return 2;
             }
-            (void)SetEnvironmentVariableW(IXIPC_PIPE_NAME_ENV, argv[++argIndex]);
+            (void)SetEnvironmentVariableW(SKUGGA_IPC_PIPE_NAME_ENV, argv[++argIndex]);
             continue;
         }
         if (!targetSet)
@@ -336,8 +330,8 @@ int wmain(int argc, wchar_t **argv)
         return 2;
     }
 
-    (void)SetEnvironmentVariableW(L"BLIND_LOG_DIR", baseDir.c_str());
-    (void)SetEnvironmentVariableW(L"BLIND_RUNNER_OWNS_PIPE", L"1");
+    (void)SetEnvironmentVariableW(L"SKUGGA_LOG_DIR", baseDir.c_str());
+    (void)SetEnvironmentVariableW(L"SKUGGA_RUNNER_OWNS_PIPE", L"1");
     state.PipeName = EffectivePipeName();
 
     state.ReadyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -358,28 +352,21 @@ int wmain(int argc, wchar_t **argv)
     STARTUPINFOW si{};
     PROCESS_INFORMATION pi{};
     si.cb = sizeof(si);
-    const bool hideChildWindow = EnvironmentVariableEnabled(L"BLIND_TEST_NO_NEW_CONSOLE");
+    const bool hideChildWindow = EnvironmentVariableEnabled(L"SKUGGA_TEST_NO_NEW_CONSOLE");
     if (hideChildWindow)
     {
         si.dwFlags |= STARTF_USESHOWWINDOW;
         si.wShowWindow = SW_HIDE;
     }
     std::wstring commandLine = BuildCommandLine(targetPath, targetArgs);
-    const BOOL created = CreateProcessW(targetPath.c_str(),
-                                        commandLine.data(),
-                                        nullptr,
-                                        nullptr,
-                                        FALSE,
-                                        hideChildWindow ? CREATE_NO_WINDOW : CREATE_NEW_CONSOLE,
-                                        nullptr,
-                                        baseDir.c_str(),
-                                        &si,
-                                        &pi);
+    const BOOL created =
+        CreateProcessW(targetPath.c_str(), commandLine.data(), nullptr, nullptr, FALSE,
+                       hideChildWindow ? CREATE_NO_WINDOW : CREATE_NEW_CONSOLE, nullptr, baseDir.c_str(), &si, &pi);
     if (!created)
     {
         std::printf("[sdk-host] CreateProcess failed gle=%lu\n", GetLastError());
         state.Stop.store(true, std::memory_order_release);
-        WaitForSingleObject(serverThread, 1000);
+        SKUGGA_SUPPORT::JoinStoppedPipeThread(serverThread);
         CloseHandle(serverThread);
         CloseHandle(state.ReadyEvent);
         return 3;
@@ -393,17 +380,16 @@ int wmain(int argc, wchar_t **argv)
         CloseHandle(pi.hThread);
         CloseHandle(pi.hProcess);
         state.Stop.store(true, std::memory_order_release);
-        WaitForSingleObject(serverThread, 1000);
+        SKUGGA_SUPPORT::JoinStoppedPipeThread(serverThread);
         CloseHandle(serverThread);
         CloseHandle(state.ReadyEvent);
         return 4;
     }
 
     const DWORD readyWait = WaitForSingleObject(state.ReadyEvent, kReadyTimeoutMs);
-    std::printf("[sdk-host] ready wait=%lu mask=0x%08lX core=0x%08lX\n",
-                readyWait,
+    std::printf("[sdk-host] ready wait=%lu mask=0x%08lX core=0x%08lX\n", readyWait,
                 static_cast<unsigned long>(state.ReadyMask.load(std::memory_order_acquire)),
-                static_cast<unsigned long>(BLIND_SDK_READY_CORE_MASK));
+                static_cast<unsigned long>(SKUGGA_SDK_READY_CORE_MASK));
 
     DWORD childWait = WaitForSingleObject(pi.hProcess, kChildTimeoutMs);
     if (childWait == WAIT_TIMEOUT)
@@ -420,19 +406,17 @@ int wmain(int argc, wchar_t **argv)
 
     Sleep(250);
     state.Stop.store(true, std::memory_order_release);
-    WaitForSingleObject(serverThread, 1000);
+    SKUGGA_SUPPORT::JoinStoppedPipeThread(serverThread);
     CloseHandle(serverThread);
     CloseHandle(state.ReadyEvent);
 
     const DWORD readyMask = state.ReadyMask.load(std::memory_order_acquire);
     const DWORD events = state.EventCount.load(std::memory_order_acquire);
-    std::printf("[sdk-host] child_wait=0x%08lX child_exit=0x%08lX events=%lu ready_mask=0x%08lX\n",
-                childWait,
-                exitCode,
-                static_cast<unsigned long>(events),
-                static_cast<unsigned long>(readyMask));
+    std::printf("[sdk-host] child_wait=0x%08lX child_exit=0x%08lX events=%lu ready_mask=0x%08lX\n", childWait, exitCode,
+                static_cast<unsigned long>(events), static_cast<unsigned long>(readyMask));
 
-    const bool readySatisfied =
-        state.ReadyAnySatisfies ? readyMask != 0 : (readyMask & BLIND_SDK_READY_CORE_MASK) == BLIND_SDK_READY_CORE_MASK;
+    const bool readySatisfied = state.ReadyAnySatisfies
+                                    ? readyMask != 0
+                                    : (readyMask & SKUGGA_SDK_READY_CORE_MASK) == SKUGGA_SDK_READY_CORE_MASK;
     return exitCode == 0 && events != 0 && readySatisfied ? 0 : 5;
 }

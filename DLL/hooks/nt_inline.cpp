@@ -8,7 +8,7 @@ namespace IX_NT_METHODS
     static bool InstallInlinePatch(void *target, void *hook, std::uint8_t original[16]) noexcept
     {
         auto *dst = static_cast<std::uint8_t *>(target);
-        const std::size_t patchSize = NtHookPatchSize(IXIPC_HOOK_METHOD_INLINE);
+        const std::size_t patchSize = NtHookPatchSize(SKUGGA_IPC_HOOK_METHOD_INLINE);
 
         DWORD oldProtect = 0;
         if (!VirtualProtect(dst, patchSize, PAGE_EXECUTE_READWRITE, &oldProtect))
@@ -40,7 +40,7 @@ namespace IX_NT_METHODS
     static void RemoveInlinePatch(void *target, const std::uint8_t original[16]) noexcept
     {
         auto *dst = static_cast<std::uint8_t *>(target);
-        const std::size_t patchSize = NtHookPatchSize(IXIPC_HOOK_METHOD_INLINE);
+        const std::size_t patchSize = NtHookPatchSize(SKUGGA_IPC_HOOK_METHOD_INLINE);
 
         DWORD oldProtect = 0;
         if (!VirtualProtect(dst, patchSize, PAGE_EXECUTE_READWRITE, &oldProtect))

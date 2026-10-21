@@ -1,6 +1,6 @@
-﻿#include "internal.h"
+#include "internal.h"
 
-namespace blind::mapper
+namespace skugga::mapper
 {
     bool MapDllIntoChild(ServerContext &ctx, HANDLE process, const std::wstring &dllPath)
     {
@@ -10,11 +10,8 @@ namespace blind::mapper
             return false;
         }
 
-        void *remoteImage = VirtualAllocEx(process,
-                                           reinterpret_cast<void *>(mapped.PreferredBase),
-                                           mapped.SizeOfImage,
-                                           MEM_COMMIT | MEM_RESERVE,
-                                           PAGE_READWRITE);
+        void *remoteImage = VirtualAllocEx(process, reinterpret_cast<void *>(mapped.PreferredBase), mapped.SizeOfImage,
+                                           MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if (remoteImage == nullptr)
         {
             remoteImage =
@@ -34,11 +31,9 @@ namespace blind::mapper
                  written == mapped.Image.size();
             if (!ok)
             {
-                HostDebugLog(ctx,
-                             "manual-map: WriteProcessMemory image failed written=%llu expected=%llu gle=%lu",
+                HostDebugLog(ctx, "manual-map: WriteProcessMemory image failed written=%llu expected=%llu gle=%lu",
                              static_cast<unsigned long long>(written),
-                             static_cast<unsigned long long>(mapped.Image.size()),
-                             GetLastError());
+                             static_cast<unsigned long long>(mapped.Image.size()), GetLastError());
                 (void)Fail(ctx, "failed to write remote image");
             }
         }
@@ -58,10 +53,8 @@ namespace blind::mapper
         UINT64 visibleBase = 0;
         bool visible = GetRemoteModuleBase(GetProcessId(process), WideBaseName(dllPath), visibleBase);
         ColorPrintf(visible ? LogColor::Warning : LogColor::Success,
-                    "[blind] manual-map visible=%u base=0x%llX mapped=0x%llX\n",
-                    visible ? 1u : 0u,
-                    static_cast<unsigned long long>(visibleBase),
-                    static_cast<unsigned long long>(remoteBase));
+                    "[skugga] manual-map visible=%u base=0x%llX mapped=0x%llX\n", visible ? 1u : 0u,
+                    static_cast<unsigned long long>(visibleBase), static_cast<unsigned long long>(remoteBase));
         return !visible;
     }
-} // namespace blind::mapper
+} // namespace skugga::mapper

@@ -32,7 +32,7 @@ namespace
     static std::atomic<bool> g_vehRingReady{false};
     static VehRingNode *g_vehNodePool{nullptr};
 
-    static LONG CALLBACK BlindVeh(EXCEPTION_POINTERS *ep);
+    static LONG CALLBACK SkuggaVeh(EXCEPTION_POINTERS *ep);
 
     static DWORD WINAPI VehDispatchThreadProc(LPVOID) noexcept
     {
@@ -196,10 +196,10 @@ namespace
 
         RemoveVectoredExceptionHandler(h);
 
-        void *nh = AddVectoredExceptionHandler(1, BlindVeh);
+        void *nh = AddVectoredExceptionHandler(1, SkuggaVeh);
         if (!nh)
         {
-            nh = AddVectoredExceptionHandler(0, BlindVeh);
+            nh = AddVectoredExceptionHandler(0, SkuggaVeh);
             if (!nh)
             {
                 g_veh_handle.store(nullptr, std::memory_order_release);
@@ -264,8 +264,7 @@ namespace
 
         HMODULE hMod = nullptr;
         if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                                reinterpret_cast<LPCWSTR>(addr),
-                                &hMod))
+                                reinterpret_cast<LPCWSTR>(addr), &hMod))
         {
             return false;
         }
@@ -329,8 +328,7 @@ namespace
         evt.eflags = ctx->EFlags;
     }
 
-    static USHORT CaptureFaultingContextStack(const CONTEXT *sourceContext,
-                                              std::uint16_t maxFrames,
+    static USHORT CaptureFaultingContextStack(const CONTEXT *sourceContext, std::uint16_t maxFrames,
                                               void **outFrames) noexcept
     {
         if (!sourceContext || !outFrames || maxFrames == 0)
@@ -363,14 +361,8 @@ namespace
                 DWORD64 establisherFrame = 0;
                 __try
                 {
-                    RtlVirtualUnwind(UNW_FLAG_NHANDLER,
-                                     imageBase,
-                                     ctx.Rip,
-                                     functionEntry,
-                                     &ctx,
-                                     &handlerData,
-                                     &establisherFrame,
-                                     nullptr);
+                    RtlVirtualUnwind(UNW_FLAG_NHANDLER, imageBase, ctx.Rip, functionEntry, &ctx, &handlerData,
+                                     &establisherFrame, nullptr);
                 }
                 __except (EXCEPTION_EXECUTE_HANDLER)
                 {
@@ -399,8 +391,7 @@ namespace
         return captured;
     }
 
-    static USHORT CaptureGuardContextStack(const CONTEXT *sourceContext,
-                                           std::uint16_t maxFrames,
+    static USHORT CaptureGuardContextStack(const CONTEXT *sourceContext, std::uint16_t maxFrames,
                                            void **outFrames) noexcept
     {
         if (!sourceContext || !outFrames || maxFrames == 0)
@@ -489,7 +480,7 @@ namespace
         return code == 0x40010006u || code == 0x4001000Au;
     }
 
-    static LONG CALLBACK BlindVeh(EXCEPTION_POINTERS *ep)
+    static LONG CALLBACK SkuggaVeh(EXCEPTION_POINTERS *ep)
     {
         if (!ep || !ep->ExceptionRecord)
             return EXCEPTION_CONTINUE_SEARCH;
@@ -647,7 +638,7 @@ namespace
     }
 } // namespace
 
-PVOID IxRegisterVectoredExceptionHandler(IxBlindTelemetryArguments *args) noexcept
+PVOID IxRegisterVectoredExceptionHandler(IxSkuggaTelemetryArguments *args) noexcept
 {
     if (!args)
         return nullptr;
@@ -675,7 +666,7 @@ PVOID IxRegisterVectoredExceptionHandler(IxBlindTelemetryArguments *args) noexce
     (void)VehRingInit();
 
     const ULONG first = args->install_first ? 1u : 0u;
-    void *h = AddVectoredExceptionHandler(first, BlindVeh);
+    void *h = AddVectoredExceptionHandler(first, SkuggaVeh);
     if (!h)
     {
         VehRingShutdown();

@@ -9,9 +9,7 @@ namespace IC_STACKTRACE
 {
     namespace
     {
-        using RtlCaptureStackBackTraceFn = USHORT(WINAPI *)(ULONG FramesToSkip,
-                                                            ULONG FramesToCapture,
-                                                            PVOID *BackTrace,
+        using RtlCaptureStackBackTraceFn = USHORT(WINAPI *)(ULONG FramesToSkip, ULONG FramesToCapture, PVOID *BackTrace,
                                                             PULONG BackTraceHash);
         using LoadLibraryWFn = HMODULE(WINAPI *)(LPCWSTR);
         using SymGetOptionsFn = DWORD(WINAPI *)();
@@ -21,8 +19,7 @@ namespace IC_STACKTRACE
         using SymFromAddrFn = BOOL(WINAPI *)(HANDLE, DWORD64, PDWORD64, PSYMBOL_INFO);
         using SymGetLineFromAddr64Fn = BOOL(WINAPI *)(HANDLE, DWORD64, PDWORD, PIMAGEHLP_LINE64);
 #if defined(_M_X64) || defined(_M_ARM64)
-        using RtlLookupFunctionEntryFn = PRUNTIME_FUNCTION(WINAPI *)(DWORD64 ControlPc,
-                                                                     PDWORD64 ImageBase,
+        using RtlLookupFunctionEntryFn = PRUNTIME_FUNCTION(WINAPI *)(DWORD64 ControlPc, PDWORD64 ImageBase,
                                                                      PUNWIND_HISTORY_TABLE HistoryTable);
 #endif
 
@@ -311,14 +308,14 @@ namespace IC_STACKTRACE
             }
 
             static constexpr IX_RUNTIME_INTERNAL::IxEncodedWideLiteral kJ58Name{L"J58.dll", 0x1F5u};
-            static constexpr IX_RUNTIME_INTERNAL::IxEncodedWideLiteral kControllerName{L"BLINDController.exe", 0x20Bu};
-            static constexpr IX_RUNTIME_INTERNAL::IxEncodedWideLiteral kInterfaceName{L"BLINDInterface.exe", 0x22Du};
-            auto blindName = IX_RUNTIME_INTERNAL::DecodeIxDllName();
+            static constexpr IX_RUNTIME_INTERNAL::IxEncodedWideLiteral kControllerName{L"SKUGGAController.exe", 0x20Bu};
+            static constexpr IX_RUNTIME_INTERNAL::IxEncodedWideLiteral kInterfaceName{L"SKUGGAInterface.exe", 0x22Du};
+            auto skuggaName = IX_RUNTIME_INTERNAL::DecodeIxDllName();
             IX_RUNTIME_INTERNAL::IxScopedWideLiteral j58Name(kJ58Name);
             IX_RUNTIME_INTERNAL::IxScopedWideLiteral controllerName(kControllerName);
             IX_RUNTIME_INTERNAL::IxScopedWideLiteral interfaceName(kInterfaceName);
 
-            if (EqualsInsensitive(leaf, blindName.c_str()) || EqualsInsensitive(leaf, j58Name.c_str()) ||
+            if (EqualsInsensitive(leaf, skuggaName.c_str()) || EqualsInsensitive(leaf, j58Name.c_str()) ||
                 EqualsInsensitive(leaf, controllerName.c_str()) || EqualsInsensitive(leaf, interfaceName.c_str()))
             {
                 return true;
@@ -443,8 +440,7 @@ namespace IC_STACKTRACE
             HMODULE mod = nullptr;
             if (!::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                                      reinterpret_cast<LPCSTR>(ip),
-                                      &mod) ||
+                                      reinterpret_cast<LPCSTR>(ip), &mod) ||
                 !mod)
             {
                 return ClassifyUnresolvedIp(ip);
@@ -491,9 +487,7 @@ namespace IC_STACKTRACE
             return CallerKind::NonSystemDll;
         }
 
-        static void FillModuleInfo(void *ip,
-                                   void *&moduleBaseOut,
-                                   std::uint32_t &rvaOut,
+        static void FillModuleInfo(void *ip, void *&moduleBaseOut, std::uint32_t &rvaOut,
                                    char moduleNameOut[MAX_PATH]) noexcept
         {
             moduleBaseOut = nullptr;
@@ -503,8 +497,7 @@ namespace IC_STACKTRACE
             HMODULE mod = nullptr;
             if (!::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                                      reinterpret_cast<LPCSTR>(ip),
-                                      &mod) ||
+                                      reinterpret_cast<LPCSTR>(ip), &mod) ||
                 !mod)
             {
                 return;
@@ -657,8 +650,7 @@ namespace IC_STACKTRACE
 
         HMODULE mod = nullptr;
         ::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                             reinterpret_cast<LPCSTR>(anyFnInOwnModule),
-                             &mod);
+                             reinterpret_cast<LPCSTR>(anyFnInOwnModule), &mod);
         g_OwnModule = mod;
     }
 
@@ -696,8 +688,7 @@ namespace IC_STACKTRACE
         g_OwnExecutableRanges[slot].End = end;
     }
 
-    void SetAnalysisSubjectMetadata(std::uint32_t subjectKind,
-                                    const wchar_t *subjectPath,
+    void SetAnalysisSubjectMetadata(std::uint32_t subjectKind, const wchar_t *subjectPath,
                                     const wchar_t *hostPath) noexcept
     {
         g_AnalysisSubjectKind = (subjectKind == kAnalysisSubjectDll) ? kAnalysisSubjectDll : kAnalysisSubjectProcess;

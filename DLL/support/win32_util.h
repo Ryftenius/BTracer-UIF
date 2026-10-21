@@ -10,12 +10,29 @@
 #include <Windows.h>
 #include <strsafe.h>
 
-#include "../../ABI/blind_ipc.h"
+#include "../../ABI/skugga_ipc.h"
 
 #include <string>
 
-namespace BLIND_SUPPORT
+namespace SKUGGA_SUPPORT
 {
+    // Call after setting the pipe worker's stop flag. Never let its stack-owned
+    // context or FILE handles disappear while a synchronous read is pending.
+    inline void JoinStoppedPipeThread(HANDLE thread) noexcept
+    {
+        for (unsigned attempt = 0; attempt < 20; ++attempt)
+        {
+            (void)CancelSynchronousIo(thread);
+            const DWORD result = WaitForSingleObject(thread, 250);
+            if (result == WAIT_OBJECT_0)
+                return;
+            if (result == WAIT_FAILED)
+                break;
+        }
+        // Returning would permit the worker to use destroyed host state.
+        ExitProcess(ERROR_TIMEOUT);
+    }
+
     inline bool FileExists(const std::wstring &path) noexcept
     {
         const DWORD attrs = GetFileAttributesW(path.c_str());
@@ -111,16 +128,16 @@ namespace BLIND_SUPPORT
 
     inline std::wstring EffectivePipeName()
     {
-        wchar_t pipeName[IXIPC_MAX_PIPE_NAME_CHARS]{};
-        const DWORD chars = GetEnvironmentVariableW(IXIPC_PIPE_NAME_ENV, pipeName, RTL_NUMBER_OF(pipeName));
+        wchar_t pipeName[SKUGGA_IPC_MAX_PIPE_NAME_CHARS]{};
+        const DWORD chars = GetEnvironmentVariableW(SKUGGA_IPC_PIPE_NAME_ENV, pipeName, RTL_NUMBER_OF(pipeName));
         if (chars > 0 && chars < RTL_NUMBER_OF(pipeName))
         {
             return pipeName;
         }
-        return IXIPC_HOOK_PIPE_NAME;
+        return SKUGGA_IPC_HOOK_PIPE_NAME;
     }
 
-    inline bool WritePacket(HANDLE pipe, const IXIPC_PACKET &packet) noexcept
+    inline bool WritePacket(HANDLE pipe, const SKUGGA_IPC_PACKET &packet) noexcept
     {
         DWORD written = 0;
         return WriteFile(pipe, &packet, static_cast<DWORD>(sizeof(packet)), &written, nullptr) &&
@@ -131,21 +148,21 @@ namespace BLIND_SUPPORT
     {
         switch (kind)
         {
-        case IxIpcHookEventNt:
+        case SkuggaIpcHookEventNt:
             return "nt";
-        case IxIpcHookEventWinsock:
+        case SkuggaIpcHookEventWinsock:
             return "winsock";
-        case IxIpcHookEventKi:
+        case SkuggaIpcHookEventKi:
             return "ki";
-        case IxIpcHookEventExceptionLowNoise:
-        case IxIpcHookEventExceptionHighPriv:
+        case SkuggaIpcHookEventExceptionLowNoise:
+        case SkuggaIpcHookEventExceptionHighPriv:
             return "exception";
-        case IxIpcHookEventIntegrity:
+        case SkuggaIpcHookEventIntegrity:
             return "integrity";
-        case IxIpcHookEventModule:
+        case SkuggaIpcHookEventModule:
             return "module";
         default:
             return "unknown";
         }
     }
-} // namespace BLIND_SUPPORT
+} // namespace SKUGGA_SUPPORT

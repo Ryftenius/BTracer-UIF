@@ -1,5 +1,6 @@
 param(
-    [switch]$KeepObj
+    [switch]$KeepObj,
+    [switch]$RemoveTaskEvidence
 )
 
 $ErrorActionPreference = "Stop"
@@ -28,10 +29,18 @@ if (-not $KeepObj) {
     Remove-WorkspacePath (Join-Path $Root "obj") -Recurse
 }
 
+if ($RemoveTaskEvidence) {
+    Remove-WorkspacePath (Join-Path $Root ".evidence") -Recurse
+    Remove-WorkspacePath (Join-Path $Root ".baseline") -Recurse
+}
+
 $diagnosticDirs = @(
-    "bin\Debug\x64\BlindDiagnostics",
-    "bin\Release\x64\BlindDiagnostics",
-    "bin\ReleaseStaged\x64\BlindDiagnostics"
+    "bin\Debug\x64\SkuggaDiagnostics",
+    "bin\Debug\Win32\SkuggaDiagnostics",
+    "bin\Release\x64\SkuggaDiagnostics",
+    "bin\Release\Win32\SkuggaDiagnostics",
+    "bin\ReleaseStaged\x64\SkuggaDiagnostics",
+    "bin\ReleaseStaged\Win32\SkuggaDiagnostics"
 )
 
 foreach ($relative in $diagnosticDirs) {
@@ -40,10 +49,13 @@ foreach ($relative in $diagnosticDirs) {
 
 $binRoot = Join-Path $Root "bin"
 if (Test-Path -LiteralPath $binRoot) {
-    Get-ChildItem -LiteralPath $binRoot -Recurse -Filter "blind-runtime-*.log" -File -ErrorAction SilentlyContinue |
+    Get-ChildItem -LiteralPath $binRoot -Recurse -Filter "skugga-runtime-*.log" -File -ErrorAction SilentlyContinue |
         ForEach-Object {
             Remove-WorkspacePath $_.FullName
         }
 }
 
 Write-Host "[clean] removed obj, diagnostics bundles, and runtime logs"
+if ($RemoveTaskEvidence) {
+    Write-Host "[clean] removed task evidence and baseline copies"
+}

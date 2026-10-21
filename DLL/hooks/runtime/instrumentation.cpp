@@ -37,9 +37,7 @@ namespace IX_RUNTIME_INTERNAL
         }
     }
 
-    static bool PublishIxInstrumentationRange(void *base,
-                                              std::uint64_t size,
-                                              std::uint32_t instrumentationFlags,
+    static bool PublishIxInstrumentationRange(void *base, std::uint64_t size, std::uint32_t instrumentationFlags,
                                               const char *tag) noexcept
     {
         IC_STACKTRACE::RegisterOwnExecutableRange(base, static_cast<std::size_t>(size));
@@ -64,20 +62,17 @@ namespace IX_RUNTIME_INTERNAL
             return false;
         }
 
-        bool ok = IXIPC::RegisterInstrumentationRange(
-            reinterpret_cast<UINT64>(resolved.Pointer), resolved.Size, instrumentationFlags, tag);
+        bool ok = SKUGGA_IPC::RegisterInstrumentationRange(reinterpret_cast<UINT64>(resolved.Pointer), resolved.Size,
+                                                           instrumentationFlags, tag);
         if (!ok)
         {
             IxRuntimeReportFault(IxRuntimeFaultCode::InstrumentationRangeRegisterFailed,
-                                 reinterpret_cast<std::uint64_t>(resolved.Pointer),
-                                 resolved.Size);
+                                 reinterpret_cast<std::uint64_t>(resolved.Pointer), resolved.Size);
         }
         return ok;
     }
 
-    bool RegisterIxDynamicInstrumentationRange(void *base,
-                                               std::uint64_t size,
-                                               std::uint32_t instrumentationFlags,
+    bool RegisterIxDynamicInstrumentationRange(void *base, std::uint64_t size, std::uint32_t instrumentationFlags,
                                                const char *tag) noexcept
     {
         return PublishIxInstrumentationRange(base, size, instrumentationFlags, tag);
@@ -105,12 +100,8 @@ namespace IX_RUNTIME_INTERNAL
         tag[p] = '\0';
     }
 
-    static void PublishIxHookPatch(void *patchAddress,
-                                   std::size_t patchSize,
-                                   const std::uint8_t originalBytes[16],
-                                   std::uint32_t flags,
-                                   const char *tagPrefix,
-                                   const char *hookName) noexcept
+    static void PublishIxHookPatch(void *patchAddress, std::size_t patchSize, const std::uint8_t originalBytes[16],
+                                   std::uint32_t flags, const char *tagPrefix, const char *hookName) noexcept
     {
         if (patchAddress == nullptr || patchSize == 0 || patchSize > IX_MAX_HOOK_PATCH_BYTES ||
             originalBytes == nullptr)
@@ -120,16 +111,11 @@ namespace IX_RUNTIME_INTERNAL
 
         char tag[IX_HOOK_PATCH_TAG_CHARS]{};
         BuildHookPatchTag(tagPrefix, hookName, tag);
-        if (!IXIPC::RegisterHookPatch(reinterpret_cast<UINT64>(patchAddress),
-                                      static_cast<UINT32>(patchSize),
-                                      originalBytes,
-                                      IX_MAX_HOOK_PATCH_BYTES,
-                                      flags,
-                                      tag))
+        if (!SKUGGA_IPC::RegisterHookPatch(reinterpret_cast<UINT64>(patchAddress), static_cast<UINT32>(patchSize),
+                                           originalBytes, IX_MAX_HOOK_PATCH_BYTES, flags, tag))
         {
             IxRuntimeReportFault(IxRuntimeFaultCode::HookPatchRegisterFailed,
-                                 reinterpret_cast<std::uint64_t>(patchAddress),
-                                 static_cast<std::uint64_t>(patchSize));
+                                 reinterpret_cast<std::uint64_t>(patchAddress), static_cast<std::uint64_t>(patchSize));
         }
     }
 
@@ -142,12 +128,8 @@ namespace IX_RUNTIME_INTERNAL
         std::size_t ntPatchCount = IxCollectNtHookPatchInfos(ntPatches, kMaxNtPatches);
         for (std::size_t i = 0; i < ntPatchCount; ++i)
         {
-            PublishIxHookPatch(ntPatches[i].PatchAddress,
-                               ntPatches[i].PatchSize,
-                               ntPatches[i].OriginalBytes,
-                               ntPatches[i].Flags,
-                               "rt.nt.",
-                               ntPatches[i].HookName);
+            PublishIxHookPatch(ntPatches[i].PatchAddress, ntPatches[i].PatchSize, ntPatches[i].OriginalBytes,
+                               ntPatches[i].Flags, "rt.nt.", ntPatches[i].HookName);
         }
         totalCount += ntPatchCount;
 
@@ -158,11 +140,8 @@ namespace IX_RUNTIME_INTERNAL
         {
             const char *prefix =
                 (winsockPatches[i].Flags == IX_HOOK_PATCH_FLAG_WINSOCK_INLINE) ? "rt.ws.inline." : "rt.ws.iat.";
-            PublishIxHookPatch(winsockPatches[i].PatchAddress,
-                               winsockPatches[i].PatchSize,
-                               winsockPatches[i].OriginalBytes,
-                               winsockPatches[i].Flags,
-                               prefix,
+            PublishIxHookPatch(winsockPatches[i].PatchAddress, winsockPatches[i].PatchSize,
+                               winsockPatches[i].OriginalBytes, winsockPatches[i].Flags, prefix,
                                winsockPatches[i].HookName);
         }
         totalCount += winsockPatchCount;
@@ -172,12 +151,8 @@ namespace IX_RUNTIME_INTERNAL
         std::size_t kiPatchCount = IxCollectKiHookPatchInfos(kiPatches, kMaxKiPatches);
         for (std::size_t i = 0; i < kiPatchCount; ++i)
         {
-            PublishIxHookPatch(kiPatches[i].PatchAddress,
-                               kiPatches[i].PatchSize,
-                               kiPatches[i].OriginalBytes,
-                               kiPatches[i].Flags,
-                               "rt.ki.",
-                               kiPatches[i].HookName);
+            PublishIxHookPatch(kiPatches[i].PatchAddress, kiPatches[i].PatchSize, kiPatches[i].OriginalBytes,
+                               kiPatches[i].Flags, "rt.ki.", kiPatches[i].HookName);
         }
         totalCount += kiPatchCount;
 
@@ -186,21 +161,14 @@ namespace IX_RUNTIME_INTERNAL
         std::size_t modulePatchCount = IxCollectModuleHookPatchInfos(modulePatches, kMaxModulePatches);
         for (std::size_t i = 0; i < modulePatchCount; ++i)
         {
-            PublishIxHookPatch(modulePatches[i].PatchAddress,
-                               modulePatches[i].PatchSize,
-                               modulePatches[i].OriginalBytes,
-                               modulePatches[i].Flags,
-                               "rt.mod.",
+            PublishIxHookPatch(modulePatches[i].PatchAddress, modulePatches[i].PatchSize,
+                               modulePatches[i].OriginalBytes, modulePatches[i].Flags, "rt.mod.",
                                modulePatches[i].HookName);
         }
         totalCount += modulePatchCount;
 
-        IxDbgLog("RegisterIxHookPatchOverlays: registered nt=%zu winsock=%zu ki=%zu module=%zu total=%zu",
-                 ntPatchCount,
-                 winsockPatchCount,
-                 kiPatchCount,
-                 modulePatchCount,
-                 totalCount);
+        IxDbgLog("RegisterIxHookPatchOverlays: registered nt=%zu winsock=%zu ki=%zu module=%zu total=%zu", ntPatchCount,
+                 winsockPatchCount, kiPatchCount, modulePatchCount, totalCount);
     }
 
     void RegisterIxOwnedRanges() noexcept
@@ -209,21 +177,21 @@ namespace IX_RUNTIME_INTERNAL
             return;
 
         MEMORY_BASIC_INFORMATION selfMbi{};
-        void *blindBase = nullptr;
+        void *skuggaBase = nullptr;
         if (VirtualQuery(reinterpret_cast<const void *>(&RegisterIxOwnedRanges), &selfMbi, sizeof(selfMbi)) ==
             sizeof(selfMbi))
         {
-            blindBase = selfMbi.AllocationBase;
+            skuggaBase = selfMbi.AllocationBase;
         }
-        if (blindBase == nullptr)
+        if (skuggaBase == nullptr)
         {
-            auto blindName = DecodeIxDllName();
-            blindBase = FindLoadedModuleBaseByName(blindName.c_str());
+            auto skuggaName = DecodeIxDllName();
+            skuggaBase = FindLoadedModuleBaseByName(skuggaName.c_str());
         }
-        std::uint64_t blindImageSize = 0;
-        if (TryGetImageSize(blindBase, blindImageSize))
+        std::uint64_t skuggaImageSize = 0;
+        if (TryGetImageSize(skuggaBase, skuggaImageSize))
         {
-            (void)PublishIxInstrumentationRange(blindBase, blindImageSize, 0u, "rt.image");
+            (void)PublishIxInstrumentationRange(skuggaBase, skuggaImageSize, 0u, "rt.image");
         }
 
         constexpr std::size_t kMaxStubs = 64;
@@ -253,8 +221,8 @@ namespace IX_RUNTIME_INTERNAL
             }
             tag[p] = '\0';
 
-            (void)PublishIxInstrumentationRange(
-                stubs[i].StubBase, static_cast<UINT64>(stubs[i].StubSize), IX_INSTRUMENTATION_FLAG_SYSCALL_STUB, tag);
+            (void)PublishIxInstrumentationRange(stubs[i].StubBase, static_cast<UINT64>(stubs[i].StubSize),
+                                                IX_INSTRUMENTATION_FLAG_SYSCALL_STUB, tag);
         }
 
         IxDbgLog("RegisterIxOwnedRanges: registered %zu NT-hook stubs", stubCount);
@@ -267,10 +235,9 @@ namespace IX_RUNTIME_INTERNAL
             IxIhrResolved resolved{};
             if (!ResolveIndirectHandle(page.BaseToken, IxIhrType::LaunchGatePage, resolved))
                 continue;
-            if (!IXIPC::RegisterInstrumentationRange(reinterpret_cast<UINT64>(resolved.Pointer),
-                                                     resolved.Size ? resolved.Size : 4096u,
-                                                     IX_INSTRUMENTATION_FLAG_LAUNCH_GATE,
-                                                     page.TrapKind == 2u ? "rt.tls" : "rt.entry"))
+            if (!SKUGGA_IPC::RegisterInstrumentationRange(
+                    reinterpret_cast<UINT64>(resolved.Pointer), resolved.Size ? resolved.Size : 4096u,
+                    IX_INSTRUMENTATION_FLAG_LAUNCH_GATE, page.TrapKind == 2u ? "rt.tls" : "rt.entry"))
             {
                 IxRuntimeReportFault(IxRuntimeFaultCode::InstrumentationRangeRegisterFailed,
                                      reinterpret_cast<std::uint64_t>(resolved.Pointer),

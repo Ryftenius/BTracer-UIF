@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -22,8 +22,8 @@
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{117af621-4c28-45eb-8dc9-73ef126ac8d1}</ProjectGuid>
-    <ProjectName>BLIND</ProjectName>
-    <RootNamespace>BLIND</RootNamespace>
+    <ProjectName>SKUGGA</ProjectName>
+    <RootNamespace>SKUGGA</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -43,7 +43,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <TargetName>BLIND</TargetName>
+    <TargetName>SKUGGA</TargetName>
     <OutDir>$(MSBuildThisFileDirectory)..\bin\$(Configuration)\$(Platform)\</OutDir>
     <IntDir>$(MSBuildThisFileDirectory)..\obj\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
   </PropertyGroup>
@@ -56,7 +56,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ExceptionHandling>Sync</ExceptionHandling>
-      <PreprocessorDefinitions>BLIND_STANDALONE=1;IX_BLIND_EXPORTS;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>SKUGGA_STANDALONE=1;IX_SKUGGA_EXPORTS;WIN32_LEAN_AND_MEAN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\ABI;$(MSBuildThisFileDirectory)..\DLL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -83,7 +83,6 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
-      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='x64'">AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <StringPooling>true</StringPooling>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <ControlFlowGuard>Guard</ControlFlowGuard>
@@ -142,9 +141,9 @@
     <ClCompile Include="..\DLL\dll.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\ABI\blind_ipc.h" />
-    <ClInclude Include="..\sdk\include\blind\blind_ipc.h" />
-    <ClInclude Include="..\sdk\include\blind\blind_veh.h" />
+    <ClInclude Include="..\ABI\skugga_ipc.h" />
+    <ClInclude Include="..\sdk\include\skugga\skugga_ipc.h" />
+    <ClInclude Include="..\sdk\include\skugga\skugga_veh.h" />
     <ClInclude Include="..\DLL\include\native_peb.h" />
     <ClInclude Include="..\DLL\hooks\controller.h" />
     <ClInclude Include="..\DLL\hooks\encoded_literal.h" />

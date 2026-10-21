@@ -1,6 +1,6 @@
-﻿#include "internal.h"
+#include "internal.h"
 
-namespace blind::mapper
+namespace skugga::mapper
 {
     DWORD ProtectionFromSectionCharacteristics(DWORD characteristics) noexcept
     {
@@ -36,8 +36,8 @@ namespace blind::mapper
         }
 
         DWORD oldProtect = 0;
-        if (!VirtualProtectEx(
-                process, reinterpret_cast<void *>(remoteBase), mapped.SizeOfHeaders, PAGE_READONLY, &oldProtect))
+        if (!VirtualProtectEx(process, reinterpret_cast<void *>(remoteBase), mapped.SizeOfHeaders, PAGE_READONLY,
+                              &oldProtect))
         {
             return FailLastError(ctx, "VirtualProtectEx(headers)");
         }
@@ -59,20 +59,13 @@ namespace blind::mapper
             SIZE_T protectSize =
                 std::min<SIZE_T>(sectionSize, mapped.Image.size() - static_cast<std::size_t>(section.VirtualAddress));
             DWORD protect = ProtectionFromSectionCharacteristics(section.Characteristics);
-            if (!VirtualProtectEx(process,
-                                  reinterpret_cast<void *>(remoteBase + section.VirtualAddress),
-                                  protectSize,
-                                  protect,
-                                  &oldProtect))
+            if (!VirtualProtectEx(process, reinterpret_cast<void *>(remoteBase + section.VirtualAddress), protectSize,
+                                  protect, &oldProtect))
             {
                 HostDebugLog(
                     ctx,
                     "manual-map: VirtualProtectEx failed section=%u rva=0x%08lX size=0x%IX protect=0x%08lX gle=%lu",
-                    static_cast<unsigned>(i),
-                    section.VirtualAddress,
-                    protectSize,
-                    protect,
-                    GetLastError());
+                    static_cast<unsigned>(i), section.VirtualAddress, protectSize, protect, GetLastError());
                 return Fail(ctx, "failed to apply final section protections");
             }
         }
@@ -98,4 +91,4 @@ namespace blind::mapper
         auto *tls = ImageRvaPtr<NativeImageTlsDirectory>(mapped.Image, dir.VirtualAddress);
         return tls != nullptr ? tls->AddressOfCallBacks : 0;
     }
-} // namespace blind::mapper
+} // namespace skugga::mapper

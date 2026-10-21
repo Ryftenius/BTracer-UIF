@@ -37,8 +37,8 @@ bool IxSetModuleHook(ModuleHookCallback callback) noexcept
         ModuleRange moduleRange{};
         if (!TryResolveModuleImageRange(moduleHandle, moduleRange))
         {
-            SetModuleHookInitFault(
-                ModuleHookInitFaultCode::ExportOutsideImage, hook.ModuleName, hook.ExportName, moduleHandle);
+            SetModuleHookInitFault(ModuleHookInitFaultCode::ExportOutsideImage, hook.ModuleName, hook.ExportName,
+                                   moduleHandle);
             continue;
         }
 
@@ -52,8 +52,8 @@ bool IxSetModuleHook(ModuleHookCallback callback) noexcept
         hook.TargetAddress = reinterpret_cast<void *>(exportAddress);
         if (!AddressWithinRange(hook.TargetAddress, moduleRange))
         {
-            SetModuleHookInitFault(
-                ModuleHookInitFaultCode::ExportOutsideImage, hook.ModuleName, hook.ExportName, hook.TargetAddress);
+            SetModuleHookInitFault(ModuleHookInitFaultCode::ExportOutsideImage, hook.ModuleName, hook.ExportName,
+                                   hook.TargetAddress);
             continue;
         }
 
@@ -61,23 +61,20 @@ bool IxSetModuleHook(ModuleHookCallback callback) noexcept
         if (TryDecodeAbsoluteTarget(hook.TargetAddress, redirectTarget) && redirectTarget != nullptr &&
             !AddressWithinRange(redirectTarget, moduleRange))
         {
-            SetModuleHookInitFault(ModuleHookInitFaultCode::ExportRedirectedOutsideImage,
-                                   hook.ModuleName,
-                                   hook.ExportName,
-                                   hook.TargetAddress,
-                                   redirectTarget);
+            SetModuleHookInitFault(ModuleHookInitFaultCode::ExportRedirectedOutsideImage, hook.ModuleName,
+                                   hook.ExportName, hook.TargetAddress, redirectTarget);
             continue;
         }
 
         hook.HookMethod = IX_RUNTIME_INTERNAL::HookMethodForModuleHookByPolicy(hook.ExportName);
         bool installed = false;
-        if (hook.HookMethod == IXIPC_HOOK_METHOD_IAT || hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT)
+        if (hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_IAT || hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT)
         {
-            installed = InstallModuleIatHook(hook, hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT);
+            installed = InstallModuleIatHook(hook, hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT);
         }
         else
         {
-            hook.HookMethod = IXIPC_HOOK_METHOD_INLINE;
+            hook.HookMethod = SKUGGA_IPC_HOOK_METHOD_INLINE;
             installed = InstallInlineHook(hook.TargetAddress, hook.HookEntry, hook.OriginalBytes, &hook.Trampoline);
             if (installed)
             {
@@ -87,8 +84,8 @@ bool IxSetModuleHook(ModuleHookCallback callback) noexcept
 
         if (!installed)
         {
-            SetModuleHookInitFault(
-                ModuleHookInitFaultCode::PatchInstallFailed, hook.ModuleName, hook.ExportName, hook.TargetAddress);
+            SetModuleHookInitFault(ModuleHookInitFaultCode::PatchInstallFailed, hook.ModuleName, hook.ExportName,
+                                   hook.TargetAddress);
             continue;
         }
 
@@ -114,7 +111,7 @@ void IxRemoveModuleHook() noexcept
             continue;
         }
 
-        if (hook.HookMethod == IXIPC_HOOK_METHOD_IAT || hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT)
+        if (hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_IAT || hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT)
         {
             RemoveModuleIatHook(hook);
         }
@@ -124,7 +121,7 @@ void IxRemoveModuleHook() noexcept
         }
         hook.TargetAddress = nullptr;
         hook.Trampoline = nullptr;
-        hook.HookMethod = IXIPC_HOOK_METHOD_INLINE;
+        hook.HookMethod = SKUGGA_IPC_HOOK_METHOD_INLINE;
         *hook.OriginalFunction = nullptr;
         hook.Installed = false;
     }
@@ -150,7 +147,7 @@ bool IxRefreshModuleHooks(HMODULE moduleHandle) noexcept
 
         if (hook.Installed)
         {
-            if (hook.HookMethod == IXIPC_HOOK_METHOD_IAT || hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT)
+            if (hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_IAT || hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT)
             {
                 anyInstalled = RefreshModuleIatHook(hook, moduleHandle) || anyInstalled;
             }
@@ -192,13 +189,13 @@ bool IxRefreshModuleHooks(HMODULE moduleHandle) noexcept
 
         hook.HookMethod = IX_RUNTIME_INTERNAL::HookMethodForModuleHookByPolicy(hook.ExportName);
         bool installed = false;
-        if (hook.HookMethod == IXIPC_HOOK_METHOD_IAT || hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT)
+        if (hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_IAT || hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT)
         {
-            installed = InstallModuleIatHook(hook, hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT);
+            installed = InstallModuleIatHook(hook, hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT);
         }
         else
         {
-            hook.HookMethod = IXIPC_HOOK_METHOD_INLINE;
+            hook.HookMethod = SKUGGA_IPC_HOOK_METHOD_INLINE;
             installed = InstallInlineHook(hook.TargetAddress, hook.HookEntry, hook.OriginalBytes, &hook.Trampoline);
             if (installed)
             {
@@ -210,7 +207,7 @@ bool IxRefreshModuleHooks(HMODULE moduleHandle) noexcept
         {
             hook.TargetAddress = nullptr;
             hook.Trampoline = nullptr;
-            hook.HookMethod = IXIPC_HOOK_METHOD_INLINE;
+            hook.HookMethod = SKUGGA_IPC_HOOK_METHOD_INLINE;
             continue;
         }
 
@@ -234,7 +231,7 @@ bool IxCheckModuleHookIntegrity(std::uint32_t *mismatchCount) noexcept
         }
 
         bool intact = false;
-        if (hook.HookMethod == IXIPC_HOOK_METHOD_IAT || hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT)
+        if (hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_IAT || hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT)
         {
             intact = CheckModuleIatHookIntegrity(hook);
         }
@@ -291,9 +288,9 @@ std::size_t IxCollectModuleHookPatchInfos(ModuleHookPatchInfo *out, std::size_t 
             continue;
         }
 
-        if (hook.HookMethod == IXIPC_HOOK_METHOD_IAT || hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT)
+        if (hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_IAT || hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT)
         {
-            const std::uint32_t flags = hook.HookMethod == IXIPC_HOOK_METHOD_SHADOW_IAT
+            const std::uint32_t flags = hook.HookMethod == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT
                                             ? IX_HOOK_PATCH_FLAG_MODULE_SHADOW_IAT
                                             : IX_HOOK_PATCH_FLAG_MODULE_IAT;
             for (std::size_t slotIndex = 0; slotIndex < hook.IatSlotCount && slotIndex < RTL_NUMBER_OF(hook.IatSlots);

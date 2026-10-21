@@ -1,9 +1,9 @@
 DSGL / EXPORT-CONTROL NOTICE
 
-BLIND may be subject to Australian Defence and Strategic Goods List (DSGL),
+SKUGGA may be subject to Australian Defence and Strategic Goods List (DSGL),
 export-control, sanctions, dual-use, and related technology-transfer
 restrictions. Do not export, re-export, transfer, publish, supply, provide
-access to, or otherwise distribute BLIND, its source code, binaries,
+access to, or otherwise distribute SKUGGA, its source code, binaries,
 documentation, build artifacts, technical data, or derived works unless you have
 confirmed that the activity is authorized under all applicable laws, licenses,
 permits, exemptions, organizational policies, and RYFTENIUS approval requirements.
@@ -18,7 +18,7 @@ or distributing this software or related technical information.
 © 2026 RYFTENIUS / 8damon
 
 Licensed under the PolyForm Noncommercial 1.0.0 license with the
-BLIND Defensive Use Addendum below.
+SKUGGA Defensive Use Addendum below.
 
 You may use, study, modify, and share this software only for noncommercial,
 authorized, defensive security purposes. Commercial use requires prior written
@@ -27,9 +27,9 @@ under this license.
 
 Required Notice: © 2026 RYFTENIUS / 8damon
 
-# BLIND Defensive Use Addendum
+# SKUGGA Defensive Use Addendum
 
-BLIND is a defensive user-mode EDR-sensor runtime for owned-process telemetry,
+SKUGGA is a defensive user-mode EDR-sensor runtime for owned-process telemetry,
 hook diagnostics, launch-gate validation, SDK host integration, and secure
 systems analysis. It is provided for authorized security research, detection
 engineering, lab validation, defensive education, regression testing, and

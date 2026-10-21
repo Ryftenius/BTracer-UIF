@@ -132,9 +132,9 @@ namespace IX_RUNTIME_INTERNAL
 
     template <std::size_t N> IxScopedWideLiteral(const IxEncodedWideLiteral<N> &literal) -> IxScopedWideLiteral<N>;
 
-    inline IxScopedWideLiteral<10> DecodeIxDllName() noexcept
+    inline IxScopedWideLiteral<11> DecodeIxDllName() noexcept
     {
-        static constexpr IxEncodedWideLiteral kName{L"BLIND.dll", 0x071u};
+        static constexpr IxEncodedWideLiteral kName{L"SKUGGA.dll", 0x071u};
         return IxScopedWideLiteral{kName};
     }
 

@@ -16,8 +16,7 @@ namespace IX_RUNTIME_INTERNAL
 
     PKH_PEB CurrentPeb() noexcept;
     bool UnicodeStringEqualsInsensitive(const KH_UNICODE_STRING &value, const wchar_t *literal) noexcept;
-    const std::uint8_t *ImagePointerFromRva(const std::uint8_t *moduleBase,
-                                            DWORD rva,
+    const std::uint8_t *ImagePointerFromRva(const std::uint8_t *moduleBase, DWORD rva,
                                             std::size_t bytesNeeded) noexcept;
     void *FindProcessImageBase() noexcept;
     void *FindLoadedModuleBaseByName(const wchar_t *moduleName) noexcept;
@@ -41,9 +40,7 @@ namespace IX_RUNTIME_INTERNAL
 
     bool NativeQueryMemory(void *address, MEMORY_BASIC_INFORMATION *memoryInfo) noexcept;
     bool NativeProtect(void *address, SIZE_T regionSize, ULONG newProtect, PULONG oldProtect) noexcept;
-    HANDLE NativeCreateEvent(bool manualReset,
-                             bool initialState,
-                             const wchar_t *name = nullptr,
+    HANDLE NativeCreateEvent(bool manualReset, bool initialState, const wchar_t *name = nullptr,
                              DWORD desiredAccess = EVENT_MODIFY_STATE | SYNCHRONIZE) noexcept;
     void NativeCloseHandle(HANDLE handle) noexcept;
     bool NativeSetEvent(HANDLE handle) noexcept;
@@ -55,15 +52,14 @@ namespace IX_RUNTIME_INTERNAL
     [[noreturn]] void NativeExitCurrentThread() noexcept;
 
     IxControlFlowPolicy QueryCurrentProcessControlFlowPolicy() noexcept;
-    bool RegisterControlFlowGuardCallTarget(void *targetAddress,
-                                            IxCfgCallTargetMode mode,
+    bool RegisterControlFlowGuardCallTarget(void *targetAddress, IxCfgCallTargetMode mode,
                                             const char *tag = nullptr) noexcept;
     void ResetControlFlowGuardPolicyCache() noexcept;
 
-    template <typename TTrace> inline void CopyHookStack(const TTrace &trace, IXIPC_HOOK_EVENT &record) noexcept
+    template <typename TTrace> inline void CopyHookStack(const TTrace &trace, SKUGGA_IPC_HOOK_EVENT &record) noexcept
     {
         const std::uint32_t safeCount = static_cast<std::uint32_t>(
-            (trace.Count > IXIPC_MAX_HOOK_STACK_FRAMES) ? IXIPC_MAX_HOOK_STACK_FRAMES : trace.Count);
+            (trace.Count > SKUGGA_IPC_MAX_HOOK_STACK_FRAMES) ? SKUGGA_IPC_MAX_HOOK_STACK_FRAMES : trace.Count);
         record.StackCount = safeCount;
         for (std::uint32_t i = 0; i < safeCount; ++i)
         {
@@ -72,8 +68,8 @@ namespace IX_RUNTIME_INTERNAL
     }
 
     void ResetIntegrityWatchdogState() noexcept;
-    IxIhrToken RegisterIndirectHandle(
-        void *pointer, std::uint64_t size, IxIhrType type, std::uint32_t flags, const char *tag) noexcept;
+    IxIhrToken RegisterIndirectHandle(void *pointer, std::uint64_t size, IxIhrType type, std::uint32_t flags,
+                                      const char *tag) noexcept;
     bool ResolveIndirectHandle(IxIhrToken token, IxIhrType expectedType, IxIhrResolved &resolved) noexcept;
     void ReleaseIndirectHandle(IxIhrToken token) noexcept;
     void ResetIndirectHandles() noexcept;
@@ -93,11 +89,9 @@ namespace IX_RUNTIME_INTERNAL
     std::uint32_t HookMethodForModuleHookByPolicy(const char *name) noexcept;
     bool ShouldSanitizeModuleHookStackByPolicy(const char *name) noexcept;
     bool ShouldInstallWinsockHookByPolicy(const char *name) noexcept;
-    bool ShouldPublishModuleHookEvent(const char *name,
-                                      void *caller,
+    bool ShouldPublishModuleHookEvent(const char *name, void *caller,
                                       const IC_STACKTRACE::Trace *trace = nullptr) noexcept;
-    bool ShouldPublishWinsockHookEvent(const char *name,
-                                       void *caller,
+    bool ShouldPublishWinsockHookEvent(const char *name, void *caller,
                                        const IC_STACKTRACE::Trace *trace = nullptr) noexcept;
     bool ShouldGuardDirectSyscallPagesByPolicy() noexcept;
     bool EvaluateNtHookPolicy(const char *name, void *caller, IxNtHookPolicyDecision &decision) noexcept;
@@ -109,18 +103,11 @@ namespace IX_RUNTIME_INTERNAL
     void PollHookIntegrityWatchdog() noexcept;
     void MaintainVectoredExceptionHandlerFront() noexcept;
     void EnsureNtdllEatGuards() noexcept;
-    void ObserveLoadedModuleForNtdllEatGuard(HMODULE moduleHandle,
-                                             const void *nameBuffer,
-                                             std::size_t nameLength,
+    void ObserveLoadedModuleForNtdllEatGuard(HMODULE moduleHandle, const void *nameBuffer, std::size_t nameLength,
                                              void *caller) noexcept;
-    bool RegisterDirectSyscallPage(void *pageBase,
-                                   std::uint64_t pageSize,
-                                   void *stubAddress,
-                                   std::uint32_t syscallNumber,
-                                   void *caller,
-                                   const std::uint8_t *sample,
-                                   std::uint32_t sampleSize,
-                                   const char *sourceApi) noexcept;
+    bool RegisterDirectSyscallPage(void *pageBase, std::uint64_t pageSize, void *stubAddress,
+                                   std::uint32_t syscallNumber, void *caller, const std::uint8_t *sample,
+                                   std::uint32_t sampleSize, const char *sourceApi) noexcept;
     bool HandleGuardedDetectionFault(const ix::IX::Event &eventRecord, EXCEPTION_POINTERS *exceptionPointers) noexcept;
     bool HandleGuardedDetectionSingleStep(const ix::IX::Event &eventRecord,
                                           EXCEPTION_POINTERS *exceptionPointers) noexcept;
@@ -129,9 +116,7 @@ namespace IX_RUNTIME_INTERNAL
     void MaintainGuardedDetections() noexcept;
     void RegisterIxOwnedRanges() noexcept;
     void RegisterIxHookPatchOverlays() noexcept;
-    bool RegisterIxDynamicInstrumentationRange(void *base,
-                                               std::uint64_t size,
-                                               std::uint32_t instrumentationFlags,
+    bool RegisterIxDynamicInstrumentationRange(void *base, std::uint64_t size, std::uint32_t instrumentationFlags,
                                                const char *tag) noexcept;
     DWORD WINAPI IxRuntimeEventLoopThreadProc(LPVOID) noexcept;
     bool EnsureRuntimeWorkerThreadStarted() noexcept;

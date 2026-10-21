@@ -1,6 +1,6 @@
 #include "ki.h"
 #include "runtime/runtime_internal.h"
-#include "../../ABI/blind_ipc.h"
+#include "../../ABI/skugga_ipc.h"
 
 #include <intrin.h>
 #include <cstring>
@@ -115,8 +115,7 @@ bool IxSetKiHook(KiHookCallback callback) noexcept
 
     if (!IX_RUNTIME_INTERNAL::RegisterControlFlowGuardCallTarget(
             reinterpret_cast<void *>(&KiUserApcHookStub),
-            IX_RUNTIME_INTERNAL::IxCfgCallTargetMode::CfgAndXfgWhenEnabled,
-            "rt.ki.apc"))
+            IX_RUNTIME_INTERNAL::IxCfgCallTargetMode::CfgAndXfgWhenEnabled, "rt.ki.apc"))
     {
         g_OriginalApcCallback = nullptr;
         g_KiUserApcCallbackSlot = nullptr;

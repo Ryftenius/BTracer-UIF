@@ -5,7 +5,7 @@
 
 namespace IX_RUNTIME_INTERNAL
 {
-    static IXIPC_QUERY_HOOK_POLICY_RESPONSE g_CliHookPolicy{};
+    static SKUGGA_IPC_QUERY_HOOK_POLICY_RESPONSE g_CliHookPolicy{};
     static bool g_CliHookPolicyLoaded = false;
     static bool g_CliHookPolicyActive = false;
 
@@ -37,7 +37,7 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        char moduleNoExt[IXIPC_MAX_HOOK_MODULE_NAME]{};
+        char moduleNoExt[SKUGGA_IPC_MAX_HOOK_MODULE_NAME]{};
         (void)StringCchCopyA(moduleNoExt, RTL_NUMBER_OF(moduleNoExt), moduleBaseName);
         char *dot = std::strrchr(moduleNoExt, '.');
         if (dot != nullptr && lstrcmpiA(dot, ".dll") == 0)
@@ -56,8 +56,7 @@ namespace IX_RUNTIME_INTERNAL
         }
         HMODULE module = nullptr;
         if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                                reinterpret_cast<LPCSTR>(caller),
-                                &module) ||
+                                reinterpret_cast<LPCSTR>(caller), &module) ||
             module == nullptr)
         {
             return false;
@@ -70,9 +69,9 @@ namespace IX_RUNTIME_INTERNAL
         }
 
         const char *baseName = BaseNameOfPath(modulePath);
-        const UINT32 ignoreCount = g_CliHookPolicy.IgnoreDllCount < IXIPC_MAX_HOOK_POLICY_IGNORE_DLLS
+        const UINT32 ignoreCount = g_CliHookPolicy.IgnoreDllCount < SKUGGA_IPC_MAX_HOOK_POLICY_IGNORE_DLLS
                                        ? g_CliHookPolicy.IgnoreDllCount
-                                       : IXIPC_MAX_HOOK_POLICY_IGNORE_DLLS;
+                                       : SKUGGA_IPC_MAX_HOOK_POLICY_IGNORE_DLLS;
         for (UINT32 i = 0; i < ignoreCount; ++i)
         {
             if (ModuleNameMatchesIgnore(g_CliHookPolicy.IgnoreDlls[i], baseName))
@@ -85,7 +84,7 @@ namespace IX_RUNTIME_INTERNAL
 
     static bool TraceMatchesIgnorePrivate(const IC_STACKTRACE::Trace &trace) noexcept
     {
-        if ((g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_IGNORE_PRIVATE) == 0)
+        if ((g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_IGNORE_PRIVATE) == 0)
         {
             return false;
         }
@@ -103,15 +102,16 @@ namespace IX_RUNTIME_INTERNAL
         return (cls.Flags & privateFlags) != 0;
     }
 
-    static const IXIPC_HOOK_POLICY_RULE *FindHookPolicyRule(UINT32 component, const char *name) noexcept
+    static const SKUGGA_IPC_HOOK_POLICY_RULE *FindHookPolicyRule(UINT32 component, const char *name) noexcept
     {
         if (name == nullptr || name[0] == '\0')
         {
             return nullptr;
         }
 
-        const UINT32 ruleCount = g_CliHookPolicy.RuleCount < IXIPC_MAX_HOOK_POLICY_RULES ? g_CliHookPolicy.RuleCount
-                                                                                         : IXIPC_MAX_HOOK_POLICY_RULES;
+        const UINT32 ruleCount = g_CliHookPolicy.RuleCount < SKUGGA_IPC_MAX_HOOK_POLICY_RULES
+                                     ? g_CliHookPolicy.RuleCount
+                                     : SKUGGA_IPC_MAX_HOOK_POLICY_RULES;
         for (UINT32 i = 0; i < ruleCount; ++i)
         {
             const auto &rule = g_CliHookPolicy.Rules[i];
@@ -123,36 +123,37 @@ namespace IX_RUNTIME_INTERNAL
         return nullptr;
     }
 
-    static const IXIPC_HOOK_POLICY_RULE *FindNtHookPolicyRule(const char *name) noexcept
+    static const SKUGGA_IPC_HOOK_POLICY_RULE *FindNtHookPolicyRule(const char *name) noexcept
     {
-        return FindHookPolicyRule(IXIPC_HOOK_POLICY_COMPONENT_NT, name);
+        return FindHookPolicyRule(SKUGGA_IPC_HOOK_POLICY_COMPONENT_NT, name);
     }
 
     static std::uint32_t NormalizeHookMethod(UINT32 component, UINT32 method) noexcept
     {
-        if (component == IXIPC_HOOK_POLICY_COMPONENT_NT)
+        if (component == SKUGGA_IPC_HOOK_POLICY_COMPONENT_NT)
         {
-            return method == IXIPC_HOOK_METHOD_INT3 ? IXIPC_HOOK_METHOD_INT3 : IXIPC_HOOK_METHOD_INLINE;
+            return method == SKUGGA_IPC_HOOK_METHOD_INT3 ? SKUGGA_IPC_HOOK_METHOD_INT3 : SKUGGA_IPC_HOOK_METHOD_INLINE;
         }
-        if (component == IXIPC_HOOK_POLICY_COMPONENT_MODULE)
+        if (component == SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE)
         {
-            if (method == IXIPC_HOOK_METHOD_IAT || method == IXIPC_HOOK_METHOD_SHADOW_IAT)
+            if (method == SKUGGA_IPC_HOOK_METHOD_IAT || method == SKUGGA_IPC_HOOK_METHOD_SHADOW_IAT)
             {
                 return method;
             }
-            return IXIPC_HOOK_METHOD_INLINE;
+            return SKUGGA_IPC_HOOK_METHOD_INLINE;
         }
-        if (component == IXIPC_HOOK_POLICY_COMPONENT_WINSOCK)
+        if (component == SKUGGA_IPC_HOOK_POLICY_COMPONENT_WINSOCK)
         {
-            return method == IXIPC_HOOK_METHOD_IAT ? IXIPC_HOOK_METHOD_IAT : IXIPC_HOOK_METHOD_INLINE;
+            return method == SKUGGA_IPC_HOOK_METHOD_IAT ? SKUGGA_IPC_HOOK_METHOD_IAT : SKUGGA_IPC_HOOK_METHOD_INLINE;
         }
-        return IXIPC_HOOK_METHOD_INLINE;
+        return SKUGGA_IPC_HOOK_METHOD_INLINE;
     }
 
     static bool HasPolicyRulesForComponent(UINT32 component) noexcept
     {
-        const UINT32 ruleCount = g_CliHookPolicy.RuleCount < IXIPC_MAX_HOOK_POLICY_RULES ? g_CliHookPolicy.RuleCount
-                                                                                         : IXIPC_MAX_HOOK_POLICY_RULES;
+        const UINT32 ruleCount = g_CliHookPolicy.RuleCount < SKUGGA_IPC_MAX_HOOK_POLICY_RULES
+                                     ? g_CliHookPolicy.RuleCount
+                                     : SKUGGA_IPC_MAX_HOOK_POLICY_RULES;
         for (UINT32 i = 0; i < ruleCount; ++i)
         {
             if (g_CliHookPolicy.Rules[i].Component == component)
@@ -189,21 +190,17 @@ namespace IX_RUNTIME_INTERNAL
     static bool IsHttpCacheHelperHookName(const char *name) noexcept
     {
         static const char *const kHttpCacheHelpers[] = {
-            "WinHttpConnect",
-            "WinHttpOpenRequest",
-            "InternetConnectW",
-            "InternetConnectA",
-            "HttpOpenRequestW",
-            "HttpOpenRequestA",
+            "WinHttpConnect",   "WinHttpOpenRequest", "InternetConnectW",
+            "InternetConnectA", "HttpOpenRequestW",   "HttpOpenRequestA",
         };
         return HookNameIsAnyOf(name, kHttpCacheHelpers, RTL_NUMBER_OF(kHttpCacheHelpers));
     }
 
     static bool HasHttpPublishRule() noexcept
     {
-        return FindHookPolicyRule(IXIPC_HOOK_POLICY_COMPONENT_MODULE, "WinHttpSendRequest") != nullptr ||
-               FindHookPolicyRule(IXIPC_HOOK_POLICY_COMPONENT_MODULE, "HttpSendRequestW") != nullptr ||
-               FindHookPolicyRule(IXIPC_HOOK_POLICY_COMPONENT_MODULE, "HttpSendRequestA") != nullptr;
+        return FindHookPolicyRule(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE, "WinHttpSendRequest") != nullptr ||
+               FindHookPolicyRule(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE, "HttpSendRequestW") != nullptr ||
+               FindHookPolicyRule(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE, "HttpSendRequestA") != nullptr;
     }
 
     static bool TraceIgnoredByPolicy(const IC_STACKTRACE::Trace *trace) noexcept
@@ -211,9 +208,7 @@ namespace IX_RUNTIME_INTERNAL
         return trace != nullptr && TraceMatchesIgnorePrivate(*trace);
     }
 
-    static bool ShouldPublishNonNtHookEvent(UINT32 component,
-                                            const char *name,
-                                            void *caller,
+    static bool ShouldPublishNonNtHookEvent(UINT32 component, const char *name, void *caller,
                                             const IC_STACKTRACE::Trace *trace) noexcept
     {
         if (!IsCliHookPolicyActive())
@@ -221,7 +216,7 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        const IXIPC_HOOK_POLICY_RULE *rule = FindHookPolicyRule(component, name);
+        const SKUGGA_IPC_HOOK_POLICY_RULE *rule = FindHookPolicyRule(component, name);
         if (rule == nullptr)
         {
             return false;
@@ -242,39 +237,37 @@ namespace IX_RUNTIME_INTERNAL
 
     bool QueryCliHookPolicyFromHost() noexcept
     {
-        IXIPC_QUERY_HOOK_POLICY_RESPONSE policy{};
-        if (!IXIPC::QueryHookPolicy(policy) || policy.PolicyVersion != IXIPC_HOOK_POLICY_VERSION)
+        SKUGGA_IPC_QUERY_HOOK_POLICY_RESPONSE policy{};
+        if (!SKUGGA_IPC::QueryHookPolicy(policy) || policy.PolicyVersion != SKUGGA_IPC_HOOK_POLICY_VERSION)
         {
             ResetCliHookPolicy();
             return false;
         }
 
-        if (policy.RuleCount > IXIPC_MAX_HOOK_POLICY_RULES)
+        if (policy.RuleCount > SKUGGA_IPC_MAX_HOOK_POLICY_RULES)
         {
-            policy.RuleCount = IXIPC_MAX_HOOK_POLICY_RULES;
+            policy.RuleCount = SKUGGA_IPC_MAX_HOOK_POLICY_RULES;
         }
-        if (policy.IgnoreDllCount > IXIPC_MAX_HOOK_POLICY_IGNORE_DLLS)
+        if (policy.IgnoreDllCount > SKUGGA_IPC_MAX_HOOK_POLICY_IGNORE_DLLS)
         {
-            policy.IgnoreDllCount = IXIPC_MAX_HOOK_POLICY_IGNORE_DLLS;
+            policy.IgnoreDllCount = SKUGGA_IPC_MAX_HOOK_POLICY_IGNORE_DLLS;
         }
         for (UINT32 i = 0; i < policy.RuleCount; ++i)
         {
-            policy.Rules[i].ApiName[IXIPC_MAX_HOOK_API_NAME - 1] = '\0';
+            policy.Rules[i].ApiName[SKUGGA_IPC_MAX_HOOK_API_NAME - 1] = '\0';
             policy.Rules[i].HookMethod = NormalizeHookMethod(policy.Rules[i].Component, policy.Rules[i].HookMethod);
         }
         for (UINT32 i = 0; i < policy.IgnoreDllCount; ++i)
         {
-            policy.IgnoreDlls[i][IXIPC_MAX_HOOK_MODULE_NAME - 1] = '\0';
+            policy.IgnoreDlls[i][SKUGGA_IPC_MAX_HOOK_MODULE_NAME - 1] = '\0';
         }
 
         g_CliHookPolicy = policy;
         g_CliHookPolicyLoaded = true;
-        g_CliHookPolicyActive = (policy.Flags & IXIPC_HOOK_POLICY_FLAG_CLI_MODE) != 0;
+        g_CliHookPolicyActive = (policy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_CLI_MODE) != 0;
         IxDbgLog("QueryCliHookPolicyFromHost: active=%u rules=%lu ignoreDlls=%lu flags=0x%08lX",
-                 g_CliHookPolicyActive ? 1u : 0u,
-                 static_cast<unsigned long>(policy.RuleCount),
-                 static_cast<unsigned long>(policy.IgnoreDllCount),
-                 static_cast<unsigned long>(policy.Flags));
+                 g_CliHookPolicyActive ? 1u : 0u, static_cast<unsigned long>(policy.RuleCount),
+                 static_cast<unsigned long>(policy.IgnoreDllCount), static_cast<unsigned long>(policy.Flags));
         return true;
     }
 
@@ -290,7 +283,7 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        if ((g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_EXPLICIT_NT) == 0)
+        if ((g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_EXPLICIT_NT) == 0)
         {
             return false;
         }
@@ -302,11 +295,11 @@ namespace IX_RUNTIME_INTERNAL
     {
         if (!IsCliHookPolicyActive())
         {
-            return IXIPC_HOOK_METHOD_INLINE;
+            return SKUGGA_IPC_HOOK_METHOD_INLINE;
         }
 
-        const IXIPC_HOOK_POLICY_RULE *rule = FindNtHookPolicyRule(name);
-        return rule != nullptr ? NormalizeHookMethod(rule->Component, rule->HookMethod) : IXIPC_HOOK_METHOD_INLINE;
+        const SKUGGA_IPC_HOOK_POLICY_RULE *rule = FindNtHookPolicyRule(name);
+        return rule != nullptr ? NormalizeHookMethod(rule->Component, rule->HookMethod) : SKUGGA_IPC_HOOK_METHOD_INLINE;
     }
 
     bool ShouldEnableNtHookControllerByPolicy() noexcept
@@ -316,8 +309,8 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        return (g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_EXPLICIT_NT) != 0 &&
-               HasPolicyRulesForComponent(IXIPC_HOOK_POLICY_COMPONENT_NT);
+        return (g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_EXPLICIT_NT) != 0 &&
+               HasPolicyRulesForComponent(SKUGGA_IPC_HOOK_POLICY_COMPONENT_NT);
     }
 
     bool ShouldEnableModuleHookControllerByPolicy() noexcept
@@ -327,10 +320,10 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        return ((g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_EXPLICIT_MODULE) != 0 &&
-                HasPolicyRulesForComponent(IXIPC_HOOK_POLICY_COMPONENT_MODULE)) ||
-               ((g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_EXPLICIT_WINSOCK) != 0 &&
-                HasPolicyRulesForComponent(IXIPC_HOOK_POLICY_COMPONENT_WINSOCK));
+        return ((g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_EXPLICIT_MODULE) != 0 &&
+                HasPolicyRulesForComponent(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE)) ||
+               ((g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_EXPLICIT_WINSOCK) != 0 &&
+                HasPolicyRulesForComponent(SKUGGA_IPC_HOOK_POLICY_COMPONENT_WINSOCK));
     }
     bool ShouldInstallModuleHookByPolicy(const char *moduleName, const char *name) noexcept
     {
@@ -341,20 +334,20 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        const bool wantsModule = (g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_EXPLICIT_MODULE) != 0;
-        const bool wantsWinsock = (g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_EXPLICIT_WINSOCK) != 0;
+        const bool wantsModule = (g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_EXPLICIT_MODULE) != 0;
+        const bool wantsWinsock = (g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_EXPLICIT_WINSOCK) != 0;
         if (!wantsModule && !wantsWinsock)
         {
             return false;
         }
 
-        if (wantsModule && FindHookPolicyRule(IXIPC_HOOK_POLICY_COMPONENT_MODULE, name) != nullptr)
+        if (wantsModule && FindHookPolicyRule(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE, name) != nullptr)
         {
             return true;
         }
 
-        if (IsLoaderHookName(name) && (HasPolicyRulesForComponent(IXIPC_HOOK_POLICY_COMPONENT_MODULE) ||
-                                       HasPolicyRulesForComponent(IXIPC_HOOK_POLICY_COMPONENT_WINSOCK)))
+        if (IsLoaderHookName(name) && (HasPolicyRulesForComponent(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE) ||
+                                       HasPolicyRulesForComponent(SKUGGA_IPC_HOOK_POLICY_COMPONENT_WINSOCK)))
         {
             return true;
         }
@@ -366,11 +359,11 @@ namespace IX_RUNTIME_INTERNAL
     {
         if (!IsCliHookPolicyActive())
         {
-            return IXIPC_HOOK_METHOD_INLINE;
+            return SKUGGA_IPC_HOOK_METHOD_INLINE;
         }
 
-        const IXIPC_HOOK_POLICY_RULE *rule = FindHookPolicyRule(IXIPC_HOOK_POLICY_COMPONENT_MODULE, name);
-        return rule != nullptr ? NormalizeHookMethod(rule->Component, rule->HookMethod) : IXIPC_HOOK_METHOD_INLINE;
+        const SKUGGA_IPC_HOOK_POLICY_RULE *rule = FindHookPolicyRule(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE, name);
+        return rule != nullptr ? NormalizeHookMethod(rule->Component, rule->HookMethod) : SKUGGA_IPC_HOOK_METHOD_INLINE;
     }
 
     bool ShouldSanitizeModuleHookStackByPolicy(const char *name) noexcept
@@ -380,33 +373,34 @@ namespace IX_RUNTIME_INTERNAL
             return false;
         }
 
-        const IXIPC_HOOK_POLICY_RULE *rule = FindHookPolicyRule(IXIPC_HOOK_POLICY_COMPONENT_MODULE, name);
-        return rule != nullptr && (rule->Flags & IXIPC_HOOK_RULE_FLAG_STACK_FABRICATE) != 0;
+        const SKUGGA_IPC_HOOK_POLICY_RULE *rule = FindHookPolicyRule(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE, name);
+        return rule != nullptr && (rule->Flags & SKUGGA_IPC_HOOK_RULE_FLAG_STACK_FABRICATE) != 0;
     }
 
     bool ShouldInstallWinsockHookByPolicy(const char *name) noexcept
     {
-        if (!IsCliHookPolicyActive() || (g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_EXPLICIT_WINSOCK) == 0)
+        if (!IsCliHookPolicyActive() || (g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_EXPLICIT_WINSOCK) == 0)
         {
             return !IsCliHookPolicyActive();
         }
 
-        return FindHookPolicyRule(IXIPC_HOOK_POLICY_COMPONENT_WINSOCK, name) != nullptr;
+        return FindHookPolicyRule(SKUGGA_IPC_HOOK_POLICY_COMPONENT_WINSOCK, name) != nullptr;
     }
 
     bool ShouldPublishModuleHookEvent(const char *name, void *caller, const IC_STACKTRACE::Trace *trace) noexcept
     {
-        return ShouldPublishNonNtHookEvent(IXIPC_HOOK_POLICY_COMPONENT_MODULE, name, caller, trace);
+        return ShouldPublishNonNtHookEvent(SKUGGA_IPC_HOOK_POLICY_COMPONENT_MODULE, name, caller, trace);
     }
 
     bool ShouldPublishWinsockHookEvent(const char *name, void *caller, const IC_STACKTRACE::Trace *trace) noexcept
     {
-        return ShouldPublishNonNtHookEvent(IXIPC_HOOK_POLICY_COMPONENT_WINSOCK, name, caller, trace);
+        return ShouldPublishNonNtHookEvent(SKUGGA_IPC_HOOK_POLICY_COMPONENT_WINSOCK, name, caller, trace);
     }
 
     bool ShouldGuardDirectSyscallPagesByPolicy() noexcept
     {
-        return IsCliHookPolicyActive() && ((g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_GUARD_DIRECT_SYSCALLS) != 0);
+        return IsCliHookPolicyActive() &&
+               ((g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_GUARD_DIRECT_SYSCALLS) != 0);
     }
 
     bool EvaluateNtHookPolicy(const char *name, void *caller, IxNtHookPolicyDecision &decision) noexcept
@@ -417,22 +411,22 @@ namespace IX_RUNTIME_INTERNAL
             return false;
         }
 
-        const IXIPC_HOOK_POLICY_RULE *rule = FindNtHookPolicyRule(name);
+        const SKUGGA_IPC_HOOK_POLICY_RULE *rule = FindNtHookPolicyRule(name);
         if (rule == nullptr)
         {
             return false;
         }
 
         decision.Matched = true;
-        decision.Log = (rule->Flags & IXIPC_HOOK_RULE_FLAG_LOG) != 0;
-        decision.StackTrace = (rule->Flags & IXIPC_HOOK_RULE_FLAG_STACK_TRACE) != 0;
-        decision.Registers = (rule->Flags & IXIPC_HOOK_RULE_FLAG_REGISTERS) != 0;
-        decision.StackFabricate = (rule->Flags & IXIPC_HOOK_RULE_FLAG_STACK_FABRICATE) != 0;
+        decision.Log = (rule->Flags & SKUGGA_IPC_HOOK_RULE_FLAG_LOG) != 0;
+        decision.StackTrace = (rule->Flags & SKUGGA_IPC_HOOK_RULE_FLAG_STACK_TRACE) != 0;
+        decision.Registers = (rule->Flags & SKUGGA_IPC_HOOK_RULE_FLAG_REGISTERS) != 0;
+        decision.StackFabricate = (rule->Flags & SKUGGA_IPC_HOOK_RULE_FLAG_STACK_FABRICATE) != 0;
         decision.Action = rule->Action;
         decision.Status = static_cast<NTSTATUS>(rule->DenyStatus);
 
         const bool needsTrace = decision.StackTrace || decision.StackFabricate ||
-                                ((g_CliHookPolicy.Flags & IXIPC_HOOK_POLICY_FLAG_IGNORE_PRIVATE) != 0);
+                                ((g_CliHookPolicy.Flags & SKUGGA_IPC_HOOK_POLICY_FLAG_IGNORE_PRIVATE) != 0);
         {
             if (needsTrace)
             {
@@ -446,7 +440,7 @@ namespace IX_RUNTIME_INTERNAL
             return true;
         }
 
-        if (decision.Action == IXIPC_HOOK_ACTION_DENY && decision.Status == 0)
+        if (decision.Action == SKUGGA_IPC_HOOK_ACTION_DENY && decision.Status == 0)
         {
             decision.Status = static_cast<NTSTATUS>(0xC0000022L);
         }

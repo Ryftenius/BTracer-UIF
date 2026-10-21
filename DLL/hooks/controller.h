@@ -9,7 +9,7 @@
 #endif
 #include <Windows.h>
 
-#include "../../ABI/blind_ipc.h"
+#include "../../ABI/skugga_ipc.h"
 #include "ws.h"
 #include "nt.h"
 #include "ki.h"
@@ -26,7 +26,7 @@ struct WinsockCapturedEvent
     std::uint32_t RepeatCount = 1;
     std::uint64_t Args[4];
     std::uint32_t DataSize = 0;
-    std::uint8_t DataSample[IXIPC_MAX_HOOK_DATA_SAMPLE]{};
+    std::uint8_t DataSample[SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE]{};
 
     IC_STACKTRACE::Trace Stack;
 };
@@ -71,7 +71,7 @@ struct ModuleCapturedEvent
     HMODULE ModuleHandle;
     std::uint32_t RepeatCount = 1;
     std::uint32_t NameSampleSize = 0;
-    std::uint8_t NameSample[IXIPC_MAX_HOOK_DATA_SAMPLE]{};
+    std::uint8_t NameSample[SKUGGA_IPC_MAX_HOOK_DATA_SAMPLE]{};
     std::uint64_t Args[4];
 
     IC_STACKTRACE::Trace Stack;

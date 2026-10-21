@@ -34,8 +34,8 @@ namespace IX_RUNTIME_INTERNAL
             return;
         }
 
-        IXIPC_HOOK_EVENT record{};
-        record.Kind = IxIpcHookEventIntegrity;
+        SKUGGA_IPC_HOOK_EVENT record{};
+        record.Kind = SkuggaIpcHookEventIntegrity;
         record.ProcessId = GetCurrentProcessId();
         record.ThreadId = park.ThreadId != 0 ? park.ThreadId : GetCurrentThreadId();
         record.Operation = LaunchGateTrapOperation(park.TrapKind);
@@ -54,7 +54,7 @@ namespace IX_RUNTIME_INTERNAL
         (void)strncpy_s(record.ModuleName, "Runtime", _TRUNCATE);
 
         IxInternalScope scope;
-        (void)IXIPC::PublishHookEvent(record);
+        (void)SKUGGA_IPC::PublishHookEvent(record);
     }
 
     bool ShouldDeferLaunchGateOpen() noexcept
@@ -88,8 +88,7 @@ namespace IX_RUNTIME_INTERNAL
         }
 
         IxDbgLog("BuildLaunchGateDeferredEventName: missing controller-provided event name envRead=%lu gle=%lu",
-                 static_cast<unsigned long>(envRead),
-                 static_cast<unsigned long>(GetLastError()));
+                 static_cast<unsigned long>(envRead), static_cast<unsigned long>(GetLastError()));
         buffer[0] = L'\0';
         return false;
     }
@@ -148,20 +147,15 @@ namespace IX_RUNTIME_INTERNAL
                     g_LaunchGatePages[i].TrapKind = kind;
                     g_LaunchGatePages[i].TrapIndex = index;
                 }
-                IxDbgLog("ArmLaunchGatePage: already armed address=%p page=%p kind=%lu index=%lu",
-                         address,
-                         pageBase,
-                         static_cast<unsigned long>(kind),
-                         static_cast<unsigned long>(index));
+                IxDbgLog("ArmLaunchGatePage: already armed address=%p page=%p kind=%lu index=%lu", address, pageBase,
+                         static_cast<unsigned long>(kind), static_cast<unsigned long>(index));
                 return true;
             }
         }
 
         if (g_LaunchGatePageCount >= kLaunchGateMaxPages)
         {
-            IxDbgLog("ArmLaunchGatePage: page capacity reached address=%p page=%p count=%lu",
-                     address,
-                     pageBase,
+            IxDbgLog("ArmLaunchGatePage: page capacity reached address=%p page=%p count=%lu", address, pageBase,
                      static_cast<unsigned long>(g_LaunchGatePageCount));
             return false;
         }
@@ -169,20 +163,15 @@ namespace IX_RUNTIME_INTERNAL
         MEMORY_BASIC_INFORMATION mbi{};
         if (!NativeQueryMemory(pageBase, &mbi) || mbi.State != MEM_COMMIT)
         {
-            IxDbgLog("ArmLaunchGatePage: query/commit failed address=%p page=%p state=0x%08lX gle=%lu",
-                     address,
-                     pageBase,
-                     static_cast<unsigned long>(mbi.State),
-                     static_cast<unsigned long>(GetLastError()));
+            IxDbgLog("ArmLaunchGatePage: query/commit failed address=%p page=%p state=0x%08lX gle=%lu", address,
+                     pageBase, static_cast<unsigned long>(mbi.State), static_cast<unsigned long>(GetLastError()));
             return false;
         }
 
         DWORD baseProtect = mbi.Protect & ~PAGE_GUARD;
         if (baseProtect == 0 || baseProtect == PAGE_NOACCESS)
         {
-            IxDbgLog("ArmLaunchGatePage: unusable protection address=%p page=%p protect=0x%08lX",
-                     address,
-                     pageBase,
+            IxDbgLog("ArmLaunchGatePage: unusable protection address=%p page=%p protect=0x%08lX", address, pageBase,
                      static_cast<unsigned long>(mbi.Protect));
             return false;
         }
@@ -190,19 +179,14 @@ namespace IX_RUNTIME_INTERNAL
         ULONG oldProtect = 0;
         if (!NativeProtect(pageBase, kLaunchGatePageSize, baseProtect | PAGE_GUARD, &oldProtect))
         {
-            IxDbgLog("ArmLaunchGatePage: protect failed address=%p page=%p baseProtect=0x%08lX gle=%lu",
-                     address,
-                     pageBase,
-                     static_cast<unsigned long>(baseProtect),
-                     static_cast<unsigned long>(GetLastError()));
+            IxDbgLog("ArmLaunchGatePage: protect failed address=%p page=%p baseProtect=0x%08lX gle=%lu", address,
+                     pageBase, static_cast<unsigned long>(baseProtect), static_cast<unsigned long>(GetLastError()));
             return false;
         }
 
-        IxIhrToken pageToken = RegisterIndirectHandle(pageBase,
-                                                      kLaunchGatePageSize,
-                                                      IxIhrType::LaunchGatePage,
-                                                      kIxIhrFlagExecutable | kIxIhrFlagOwned | kIxIhrFlagGuarded,
-                                                      LaunchGateTrapTag(kind));
+        IxIhrToken pageToken =
+            RegisterIndirectHandle(pageBase, kLaunchGatePageSize, IxIhrType::LaunchGatePage,
+                                   kIxIhrFlagExecutable | kIxIhrFlagOwned | kIxIhrFlagGuarded, LaunchGateTrapTag(kind));
         if (pageToken == 0)
         {
             ULONG ignored = 0;
@@ -219,14 +203,9 @@ namespace IX_RUNTIME_INTERNAL
         g_LaunchGatePageCount += 1;
         IxDbgLog("ArmLaunchGatePage: armed address=%p page=%p kind=%lu index=%lu protect=0x%08lX oldProtect=0x%08lX "
                  "token=0x%llX count=%lu",
-                 address,
-                 pageBase,
-                 static_cast<unsigned long>(kind),
-                 static_cast<unsigned long>(index),
-                 static_cast<unsigned long>(baseProtect),
-                 static_cast<unsigned long>(oldProtect),
-                 static_cast<unsigned long long>(pageToken),
-                 static_cast<unsigned long>(g_LaunchGatePageCount));
+                 address, pageBase, static_cast<unsigned long>(kind), static_cast<unsigned long>(index),
+                 static_cast<unsigned long>(baseProtect), static_cast<unsigned long>(oldProtect),
+                 static_cast<unsigned long long>(pageToken), static_cast<unsigned long>(g_LaunchGatePageCount));
         return true;
     }
 
@@ -247,8 +226,7 @@ namespace IX_RUNTIME_INTERNAL
 
         void *descriptor = const_cast<std::uint8_t *>(processModule) + clrDirectory.VirtualAddress;
         IxDbgLog("ArmLaunchGateForClrDescriptor: clrRva=0x%lX clrSize=0x%lX address=%p",
-                 static_cast<unsigned long>(clrDirectory.VirtualAddress),
-                 static_cast<unsigned long>(clrDirectory.Size),
+                 static_cast<unsigned long>(clrDirectory.VirtualAddress), static_cast<unsigned long>(clrDirectory.Size),
                  descriptor);
         return ArmLaunchGatePage(descriptor, LaunchGateTrapEntryPoint, 0);
     }
@@ -273,11 +251,9 @@ namespace IX_RUNTIME_INTERNAL
             void *sectionStart = const_cast<std::uint8_t *>(processModule) + section->VirtualAddress;
             char sectionName[IMAGE_SIZEOF_SHORT_NAME + 1]{};
             std::memcpy(sectionName, section->Name, IMAGE_SIZEOF_SHORT_NAME);
-            IxDbgLog("ArmLaunchGateForFirstExecutableSection: section=%s rva=0x%lX size=0x%lX address=%p",
-                     sectionName,
+            IxDbgLog("ArmLaunchGateForFirstExecutableSection: section=%s rva=0x%lX size=0x%lX address=%p", sectionName,
                      static_cast<unsigned long>(section->VirtualAddress),
-                     static_cast<unsigned long>(section->Misc.VirtualSize),
-                     sectionStart);
+                     static_cast<unsigned long>(section->Misc.VirtualSize), sectionStart);
             return ArmLaunchGatePage(sectionStart, LaunchGateTrapEntryPoint, 0);
         }
 
@@ -349,8 +325,7 @@ namespace IX_RUNTIME_INTERNAL
         context = park->Context;
         park->State = 0;
         SanitizeLaunchGateRestoreContext(context);
-        IxDbgLog("%s: resuming original thread tid=%lu rip=%p rsp=%p",
-                 source != nullptr ? source : "LaunchGate",
+        IxDbgLog("%s: resuming original thread tid=%lu rip=%p rsp=%p", source != nullptr ? source : "LaunchGate",
                  static_cast<unsigned long>(park->ThreadId),
                  reinterpret_cast<void *>(LaunchGateInstructionPointer(context)),
                  reinterpret_cast<void *>(LaunchGateStackPointer(context)));
@@ -363,12 +338,11 @@ namespace IX_RUNTIME_INTERNAL
         if (ntContinue != nullptr)
         {
             NTSTATUS status = ntContinue(&context, FALSE);
-            IxRuntimeReportFault(
-                IxRuntimeFaultCode::LaunchGateResumeRejected, static_cast<std::uint32_t>(status), context.ContextFlags);
+            IxRuntimeReportFault(IxRuntimeFaultCode::LaunchGateResumeRejected, static_cast<std::uint32_t>(status),
+                                 context.ContextFlags);
         }
 
-        IxRuntimeReportFault(IxRuntimeFaultCode::LaunchGateResumeRejected,
-                             LaunchGateInstructionPointer(context),
+        IxRuntimeReportFault(IxRuntimeFaultCode::LaunchGateResumeRejected, LaunchGateInstructionPointer(context),
                              LaunchGateStackPointer(context));
         IxRuntimeFailClosed(ERROR_INVALID_STATE);
     }
@@ -468,8 +442,7 @@ namespace IX_RUNTIME_INTERNAL
         const auto *dos = reinterpret_cast<const IMAGE_DOS_HEADER *>(processModule);
         if (dos == nullptr || dos->e_magic != IMAGE_DOS_SIGNATURE)
         {
-            IxDbgLog("ArmLaunchGateForProcessEntry: invalid DOS header image=%p magic=0x%04X",
-                     processModule,
+            IxDbgLog("ArmLaunchGateForProcessEntry: invalid DOS header image=%p magic=0x%04X", processModule,
                      dos != nullptr ? dos->e_magic : 0u);
             return false;
         }
@@ -479,8 +452,7 @@ namespace IX_RUNTIME_INTERNAL
         if (ntHeaders == nullptr || ntHeaders->Signature != IMAGE_NT_SIGNATURE)
         {
             IxDbgLog("ArmLaunchGateForProcessEntry: invalid NT headers image=%p e_lfanew=0x%lX signature=0x%08lX",
-                     processModule,
-                     static_cast<unsigned long>(dos->e_lfanew),
+                     processModule, static_cast<unsigned long>(dos->e_lfanew),
                      ntHeaders != nullptr ? static_cast<unsigned long>(ntHeaders->Signature) : 0ul);
             return false;
         }
@@ -489,8 +461,7 @@ namespace IX_RUNTIME_INTERNAL
         IxDbgLog(
             "ArmLaunchGateForProcessEntry: image=%p entryRva=0x%lX tlsRva=0x%lX tlsSize=0x%lX clrRva=0x%lX "
             "clrSize=0x%lX",
-            processModule,
-            static_cast<unsigned long>(ntHeaders->OptionalHeader.AddressOfEntryPoint),
+            processModule, static_cast<unsigned long>(ntHeaders->OptionalHeader.AddressOfEntryPoint),
             ntHeaders->OptionalHeader.NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_TLS
                 ? static_cast<unsigned long>(
                       ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress)
@@ -510,8 +481,7 @@ namespace IX_RUNTIME_INTERNAL
         {
             armedAny |= ArmLaunchGatePage(reinterpret_cast<void *>(reinterpret_cast<ULONG_PTR>(processModule) +
                                                                    ntHeaders->OptionalHeader.AddressOfEntryPoint),
-                                          LaunchGateTrapEntryPoint,
-                                          0);
+                                          LaunchGateTrapEntryPoint, 0);
         }
         else
         {
@@ -542,12 +512,10 @@ namespace IX_RUNTIME_INTERNAL
                         for (std::size_t i = 0; i < kLaunchGateMaxPages && callbacks[i] != nullptr; ++i)
                         {
                             tlsCallbackCount += 1;
-                            IxDbgLog("ArmLaunchGateForProcessEntry: TLS callback[%zu]=%p",
-                                     i,
+                            IxDbgLog("ArmLaunchGateForProcessEntry: TLS callback[%zu]=%p", i,
                                      reinterpret_cast<void *>(callbacks[i]));
                             armedAny |= ArmLaunchGatePage(reinterpret_cast<void *>(callbacks[i]),
-                                                          LaunchGateTrapTlsCallback,
-                                                          static_cast<std::uint32_t>(i));
+                                                          LaunchGateTrapTlsCallback, static_cast<std::uint32_t>(i));
                         }
                         IxDbgLog("ArmLaunchGateForProcessEntry: TLS callbacks armed=%zu", tlsCallbackCount);
                     }
@@ -561,8 +529,7 @@ namespace IX_RUNTIME_INTERNAL
         }
 #endif
 
-        IxDbgLog("ArmLaunchGateForProcessEntry: armedAny=%u count=%lu",
-                 armedAny ? 1u : 0u,
+        IxDbgLog("ArmLaunchGateForProcessEntry: armedAny=%u count=%lu", armedAny ? 1u : 0u,
                  static_cast<unsigned long>(g_LaunchGatePageCount));
         return armedAny;
     }
@@ -675,8 +642,8 @@ namespace IX_RUNTIME_INTERNAL
             {
                 matchedPage = &g_LaunchGatePages[i];
                 ULONG ignored = 0;
-                (void)NativeProtect(
-                    pageBase, kLaunchGatePageSize, g_LaunchGatePages[i].OriginalProtect | PAGE_GUARD, &ignored);
+                (void)NativeProtect(pageBase, kLaunchGatePageSize, g_LaunchGatePages[i].OriginalProtect | PAGE_GUARD,
+                                    &ignored);
                 break;
             }
         }
@@ -721,12 +688,9 @@ namespace IX_RUNTIME_INTERNAL
         ep->ContextRecord->Rip =
             reinterpret_cast<DWORD64>(park->InitializeRuntime ? &LaunchGateInitializeThunk : &LaunchGateParkThunk);
         ep->ContextRecord->Rcx = reinterpret_cast<DWORD64>(park);
-        IxDbgLog("LaunchGateHandleFault: redirected park=%p slotTid=%lu init=%ld newRip=%p newRsp=%p",
-                 park,
-                 (unsigned long)park->ThreadId,
-                 park->InitializeRuntime,
-                 reinterpret_cast<void *>(ep->ContextRecord->Rip),
-                 reinterpret_cast<void *>(ep->ContextRecord->Rsp));
+        IxDbgLog("LaunchGateHandleFault: redirected park=%p slotTid=%lu init=%ld newRip=%p newRsp=%p", park,
+                 (unsigned long)park->ThreadId, park->InitializeRuntime,
+                 reinterpret_cast<void *>(ep->ContextRecord->Rip), reinterpret_cast<void *>(ep->ContextRecord->Rsp));
         return true;
 #else
         UNREFERENCED_PARAMETER(ep);

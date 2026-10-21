@@ -4,11 +4,11 @@
 #include <strsafe.h>
 #include <cstring>
 
-namespace IXIPC
+namespace SKUGGA_IPC
 {
     static bool PipeDebugOutputEnabled() noexcept
     {
-        static constexpr IX_RUNTIME_INTERNAL::IxEncodedAnsiLiteral kOutputDebugEnv{"IX_BLIND_OUTPUT_DEBUG", 0x4Bu};
+        static constexpr IX_RUNTIME_INTERNAL::IxEncodedAnsiLiteral kOutputDebugEnv{"IX_SKUGGA_OUTPUT_DEBUG", 0x4Bu};
         static volatile LONG state = 0;
         LONG cached = InterlockedCompareExchange(&state, 0, 0);
         if (cached != 0)
@@ -39,12 +39,8 @@ namespace IXIPC
         va_end(args);
 
         char line[768]{};
-        (void)StringCchPrintfA(line,
-                               RTL_NUMBER_OF(line),
-                               "[IXIPC pid=%lu tid=%lu] %s\n",
-                               GetCurrentProcessId(),
-                               GetCurrentThreadId(),
-                               message);
+        (void)StringCchPrintfA(line, RTL_NUMBER_OF(line), "[SKUGGA_IPC pid=%lu tid=%lu] %s\n", GetCurrentProcessId(),
+                               GetCurrentThreadId(), message);
         if (PipeDebugOutputEnabled())
         {
             IxInternalScope scope;
@@ -64,7 +60,7 @@ namespace IXIPC
     struct alignas(MEMORY_ALLOCATION_ALIGNMENT) AsyncHookNode
     {
         SLIST_ENTRY FreeLink;
-        IXIPC_HOOK_EVENT Event;
+        SKUGGA_IPC_HOOK_EVENT Event;
     };
 
     static SLIST_HEADER g_asyncFreeList;
@@ -95,24 +91,22 @@ namespace IXIPC
         InterlockedExchange(&g_lastConnectError, static_cast<LONG>(error));
     }
 
-    static bool TransactCommandLocked(UINT32 command,
-                                      const void *payload,
-                                      size_t payloadSize,
-                                      IXIPC_PACKET *outResponse);
-    static bool PublishHookEventBatchLocked(const IXIPC_HOOK_EVENT *events, UINT32 count);
+    static bool TransactCommandLocked(UINT32 command, const void *payload, size_t payloadSize,
+                                      SKUGGA_IPC_PACKET *outResponse);
+    static bool PublishHookEventBatchLocked(const SKUGGA_IPC_HOOK_EVENT *events, UINT32 count);
 
     static DWORD CommandTimeoutMs(UINT32 command) noexcept
     {
         switch (command)
         {
-        case IxIpcCommandPublishHookEvent:
-        case IxIpcCommandPublishHookEventBatch:
+        case SkuggaIpcCommandPublishHookEvent:
+        case SkuggaIpcCommandPublishHookEventBatch:
             return kAsyncPublishTimeoutMs;
-        case IxIpcCommandNotifyHookReady:
-        case IxIpcCommandQueryHookPolicy:
-        case IxIpcCommandRegisterInstrumentationRange:
-        case IxIpcCommandRegisterHookPatch:
-        case IxIpcCommandRegisterProcessInstrumentationCallback:
+        case SkuggaIpcCommandNotifyHookReady:
+        case SkuggaIpcCommandQueryHookPolicy:
+        case SkuggaIpcCommandRegisterInstrumentationRange:
+        case SkuggaIpcCommandRegisterHookPatch:
+        case SkuggaIpcCommandRegisterProcessInstrumentationCallback:
             return PIPE_DEFAULT_TIMEOUT_MS;
         default:
             return PIPE_DEFAULT_TIMEOUT_MS;
@@ -145,10 +139,10 @@ namespace IXIPC
             // Dispatch events in bounded batches (we're off the hook thread now).
             while (head)
             {
-                IXIPC_HOOK_EVENT batch[IXIPC_MAX_HOOK_EVENT_BATCH]{};
+                SKUGGA_IPC_HOOK_EVENT batch[SKUGGA_IPC_MAX_HOOK_EVENT_BATCH]{};
                 UINT32 batchCount = 0;
 
-                while (head && batchCount < IXIPC_MAX_HOOK_EVENT_BATCH)
+                while (head && batchCount < SKUGGA_IPC_MAX_HOOK_EVENT_BATCH)
                 {
                     PSLIST_ENTRY next = head->Next;
                     AsyncHookNode *node = CONTAINING_RECORD(head, AsyncHookNode, FreeLink);
@@ -157,7 +151,7 @@ namespace IXIPC
                     head = next;
                 }
 
-                /* Guard: IPC sends must not re-enter BLIND hooks. */
+                /* Guard: IPC sends must not re-enter SKUGGA hooks. */
                 IxInternalScope _ipc_scope;
                 AcquireSRWLockExclusive(&g_pipeLock);
                 (void)PublishHookEventBatchLocked(batch, batchCount);
@@ -209,20 +203,21 @@ namespace IXIPC
         }
     }
 
-    static PCWSTR ResolveHookPipeName(wchar_t (&buffer)[IXIPC_MAX_PIPE_NAME_CHARS]) noexcept
+    static PCWSTR ResolveHookPipeName(wchar_t (&buffer)[SKUGGA_IPC_MAX_PIPE_NAME_CHARS]) noexcept
     {
         buffer[0] = L'\0';
-        DWORD chars = GetEnvironmentVariableW(IXIPC_PIPE_NAME_ENV, buffer, static_cast<DWORD>(RTL_NUMBER_OF(buffer)));
+        DWORD chars =
+            GetEnvironmentVariableW(SKUGGA_IPC_PIPE_NAME_ENV, buffer, static_cast<DWORD>(RTL_NUMBER_OF(buffer)));
         if (chars > 0 && chars < RTL_NUMBER_OF(buffer))
         {
             return buffer;
         }
-        return IXIPC_HOOK_PIPE_NAME;
+        return SKUGGA_IPC_HOOK_PIPE_NAME;
     }
 
     static bool EnsurePipeOpenLocked(DWORD timeoutMs)
     {
-        wchar_t hookPipeNameBuffer[IXIPC_MAX_PIPE_NAME_CHARS]{};
+        wchar_t hookPipeNameBuffer[SKUGGA_IPC_MAX_PIPE_NAME_CHARS]{};
         PCWSTR hookPipeName = ResolveHookPipeName(hookPipeNameBuffer);
 
         if (g_pipeHandle != nullptr && g_pipeHandle != INVALID_HANDLE_VALUE)
@@ -238,13 +233,8 @@ namespace IXIPC
             return false;
         }
 
-        HANDLE hPipe = CreateFileW(hookPipeName,
-                                   GENERIC_READ | GENERIC_WRITE,
-                                   0,
-                                   nullptr,
-                                   OPEN_EXISTING,
-                                   FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
-                                   nullptr);
+        HANDLE hPipe = CreateFileW(hookPipeName, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
+                                   FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr);
 
         if (hPipe == INVALID_HANDLE_VALUE)
         {
@@ -325,7 +315,7 @@ namespace IXIPC
         return true;
     }
 
-    static bool SendPacketLocked(const IXIPC_PACKET &request, IXIPC_PACKET &response, DWORD timeoutMs)
+    static bool SendPacketLocked(const SKUGGA_IPC_PACKET &request, SKUGGA_IPC_PACKET &response, DWORD timeoutMs)
     {
         DWORD bytesWritten = 0;
         DWORD bytesRead = 0;
@@ -342,23 +332,19 @@ namespace IXIPC
         {
             DWORD gle = GetLastError();
             RecordConnectStatus(PipeConnectStageTransfer, gle);
-            PipeDebugLog(
-                "SendPacketLocked: read failed cmd=%lu gle=%lu bytesRead=%lu", request.Command, gle, bytesRead);
+            PipeDebugLog("SendPacketLocked: read failed cmd=%lu gle=%lu bytesRead=%lu", request.Command, gle,
+                         bytesRead);
             ClosePipeLocked();
             return false;
         }
 
-        if (response.Magic != IXIPC_MAGIC || response.Version != IXIPC_VERSION ||
-            response.PacketType != IxIpcPacketResponse || response.Command != request.Command ||
+        if (response.Magic != SKUGGA_IPC_MAGIC || response.Version != SKUGGA_IPC_VERSION ||
+            response.PacketType != SkuggaIpcPacketResponse || response.Command != request.Command ||
             response.Sequence != request.Sequence)
         {
             RecordConnectStatus(PipeConnectStageTransfer, ERROR_INVALID_DATA);
             PipeDebugLog("SendPacketLocked: protocol mismatch cmd=%lu respCmd=%lu respType=%lu seq=%lu respSeq=%lu",
-                         request.Command,
-                         response.Command,
-                         response.PacketType,
-                         request.Sequence,
-                         response.Sequence);
+                         request.Command, response.Command, response.PacketType, request.Sequence, response.Sequence);
             ClosePipeLocked();
             return false;
         }
@@ -368,21 +354,21 @@ namespace IXIPC
 
     static bool EnsureHandshakeLocked(DWORD timeoutMs)
     {
-        IXIPC_PACKET request{};
-        IXIPC_PACKET response{};
+        SKUGGA_IPC_PACKET request{};
+        SKUGGA_IPC_PACKET response{};
 
         if (g_handshakeComplete)
         {
             return true;
         }
 
-        request.Magic = IXIPC_MAGIC;
-        request.Version = IXIPC_VERSION;
-        request.PacketType = IxIpcPacketRequest;
-        request.Command = IxIpcCommandHandshake;
+        request.Magic = SKUGGA_IPC_MAGIC;
+        request.Version = SKUGGA_IPC_VERSION;
+        request.PacketType = SkuggaIpcPacketRequest;
+        request.Command = SkuggaIpcCommandHandshake;
         request.Sequence = (UINT32)InterlockedIncrement(&g_sequence);
         request.Status = ERROR_SUCCESS;
-        request.Payload.HandshakeRequest.RequestedVersion = IXIPC_VERSION;
+        request.Payload.HandshakeRequest.RequestedVersion = SKUGGA_IPC_VERSION;
 
         if (!SendPacketLocked(request, response, timeoutMs))
         {
@@ -391,12 +377,12 @@ namespace IXIPC
             return false;
         }
 
-        if (response.Status != ERROR_SUCCESS || response.Payload.HandshakeResponse.NegotiatedVersion != IXIPC_VERSION)
+        if (response.Status != ERROR_SUCCESS ||
+            response.Payload.HandshakeResponse.NegotiatedVersion != SKUGGA_IPC_VERSION)
         {
             RecordConnectStatus(PipeConnectStageHandshake,
                                 response.Status == ERROR_SUCCESS ? ERROR_REVISION_MISMATCH : response.Status);
-            PipeDebugLog("EnsureHandshakeLocked: negotiation failed status=%lu version=%lu",
-                         response.Status,
+            PipeDebugLog("EnsureHandshakeLocked: negotiation failed status=%lu version=%lu", response.Status,
                          response.Payload.HandshakeResponse.NegotiatedVersion);
             ClosePipeLocked();
             return false;
@@ -408,14 +394,12 @@ namespace IXIPC
         return true;
     }
 
-    static bool TransactCommandLocked(UINT32 command,
-                                      const void *payload,
-                                      size_t payloadSize,
-                                      IXIPC_PACKET *outResponse)
+    static bool TransactCommandLocked(UINT32 command, const void *payload, size_t payloadSize,
+                                      SKUGGA_IPC_PACKET *outResponse)
     {
         IxInternalScope _ipc_scope;
-        IXIPC_PACKET request{};
-        IXIPC_PACKET response{};
+        SKUGGA_IPC_PACKET request{};
+        SKUGGA_IPC_PACKET response{};
         DWORD timeoutMs = CommandTimeoutMs(command);
 
         if (payloadSize > sizeof(request.Payload))
@@ -433,9 +417,9 @@ namespace IXIPC
             return false;
         }
 
-        request.Magic = IXIPC_MAGIC;
-        request.Version = IXIPC_VERSION;
-        request.PacketType = IxIpcPacketRequest;
+        request.Magic = SKUGGA_IPC_MAGIC;
+        request.Version = SKUGGA_IPC_VERSION;
+        request.PacketType = SkuggaIpcPacketRequest;
         request.Command = command;
         request.Sequence = (UINT32)InterlockedIncrement(&g_sequence);
         request.Status = ERROR_SUCCESS;
@@ -457,7 +441,7 @@ namespace IXIPC
         return (response.Status == ERROR_SUCCESS);
     }
 
-    static bool PublishHookEventBatchLocked(const IXIPC_HOOK_EVENT *events, UINT32 count)
+    static bool PublishHookEventBatchLocked(const SKUGGA_IPC_HOOK_EVENT *events, UINT32 count)
     {
         if (events == nullptr || count == 0)
         {
@@ -466,22 +450,22 @@ namespace IXIPC
 
         if (count == 1)
         {
-            return TransactCommandLocked(IxIpcCommandPublishHookEvent, &events[0], sizeof(events[0]), nullptr);
+            return TransactCommandLocked(SkuggaIpcCommandPublishHookEvent, &events[0], sizeof(events[0]), nullptr);
         }
 
-        if (count > IXIPC_MAX_HOOK_EVENT_BATCH)
+        if (count > SKUGGA_IPC_MAX_HOOK_EVENT_BATCH)
         {
-            count = IXIPC_MAX_HOOK_EVENT_BATCH;
+            count = SKUGGA_IPC_MAX_HOOK_EVENT_BATCH;
         }
 
-        IXIPC_HOOK_EVENT_BATCH batch{};
+        SKUGGA_IPC_HOOK_EVENT_BATCH batch{};
         batch.Count = count;
         for (UINT32 i = 0; i < count; ++i)
         {
             batch.Events[i] = events[i];
         }
 
-        if (TransactCommandLocked(IxIpcCommandPublishHookEventBatch, &batch, sizeof(batch), nullptr))
+        if (TransactCommandLocked(SkuggaIpcCommandPublishHookEventBatch, &batch, sizeof(batch), nullptr))
         {
             return true;
         }
@@ -489,7 +473,7 @@ namespace IXIPC
         bool allSent = true;
         for (UINT32 i = 0; i < count; ++i)
         {
-            if (!TransactCommandLocked(IxIpcCommandPublishHookEvent, &events[i], sizeof(events[i]), nullptr))
+            if (!TransactCommandLocked(SkuggaIpcCommandPublishHookEvent, &events[i], sizeof(events[i]), nullptr))
             {
                 allSent = false;
             }
@@ -517,8 +501,8 @@ namespace IXIPC
             InitializeSListHead(&g_asyncPendingList);
             g_asyncDropped = 0;
 
-            g_asyncNodePool = static_cast<AsyncHookNode *>(VirtualAlloc(
-                nullptr, sizeof(AsyncHookNode) * kAsyncPoolSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+            g_asyncNodePool = static_cast<AsyncHookNode *>(VirtualAlloc(nullptr, sizeof(AsyncHookNode) * kAsyncPoolSize,
+                                                                        MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
             if (g_asyncNodePool)
             {
                 for (LONG i = 0; i < kAsyncPoolSize; ++i)
@@ -675,7 +659,7 @@ namespace IXIPC
         return true;
     }
 
-    bool PublishHookEvent(const IXIPC_HOOK_EVENT &eventRecord)
+    bool PublishHookEvent(const SKUGGA_IPC_HOOK_EVENT &eventRecord)
     {
         // Hook callbacks must never block on pipe I/O. If the modern async
         // publisher is unavailable or saturated, shed the event and report it.
@@ -703,7 +687,7 @@ namespace IXIPC
         return false;
     }
 
-    bool PublishHookEventSynchronously(const IXIPC_HOOK_EVENT &eventRecord) noexcept
+    bool PublishHookEventSynchronously(const SKUGGA_IPC_HOOK_EVENT &eventRecord) noexcept
     {
         IxInternalScope _ipc_scope;
         if (!TryAcquireSRWLockExclusive(&g_pipeLock))
@@ -711,7 +695,7 @@ namespace IXIPC
             InterlockedIncrement(&g_asyncDropped);
             return false;
         }
-        bool ok = TransactCommandLocked(IxIpcCommandPublishHookEvent, &eventRecord, sizeof(eventRecord), nullptr);
+        bool ok = TransactCommandLocked(SkuggaIpcCommandPublishHookEvent, &eventRecord, sizeof(eventRecord), nullptr);
         ReleaseSRWLockExclusive(&g_pipeLock);
         return ok;
     }
@@ -753,9 +737,9 @@ namespace IXIPC
 
         while (head)
         {
-            IXIPC_HOOK_EVENT batch[IXIPC_MAX_HOOK_EVENT_BATCH]{};
+            SKUGGA_IPC_HOOK_EVENT batch[SKUGGA_IPC_MAX_HOOK_EVENT_BATCH]{};
             UINT32 batchCount = 0;
-            while (head && dispatched + batchCount < maxEvents && batchCount < IXIPC_MAX_HOOK_EVENT_BATCH)
+            while (head && dispatched + batchCount < maxEvents && batchCount < SKUGGA_IPC_MAX_HOOK_EVENT_BATCH)
             {
                 PSLIST_ENTRY next = head->Next;
                 AsyncHookNode *node = CONTAINING_RECORD(head, AsyncHookNode, FreeLink);
@@ -789,7 +773,7 @@ namespace IXIPC
 
     bool RegisterInstrumentationRange(UINT64 baseAddress, UINT64 regionSize, UINT32 flags, const char *tag) noexcept
     {
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
         UNREFERENCED_PARAMETER(flags);
         UNREFERENCED_PARAMETER(tag);
         return baseAddress != 0 && regionSize != 0;
@@ -797,7 +781,7 @@ namespace IXIPC
         if (baseAddress == 0 || regionSize == 0)
             return false;
 
-        IXIPC_REGISTER_INSTRUMENTATION_RANGE_REQUEST request{};
+        SKUGGA_IPC_REGISTER_INSTRUMENTATION_RANGE_REQUEST request{};
         request.BaseAddress = baseAddress;
         request.RegionSize = regionSize;
         request.Flags = flags;
@@ -816,29 +800,23 @@ namespace IXIPC
 
         bool ok;
         AcquireSRWLockExclusive(&g_pipeLock);
-        ok = TransactCommandLocked(IxIpcCommandRegisterInstrumentationRange, &request, sizeof(request), nullptr);
+        ok = TransactCommandLocked(SkuggaIpcCommandRegisterInstrumentationRange, &request, sizeof(request), nullptr);
         ReleaseSRWLockExclusive(&g_pipeLock);
 
         if (!ok)
         {
             PipeDebugLog("RegisterInstrumentationRange: failed base=0x%llX size=0x%llX flags=0x%08X tag=%s",
-                         (unsigned long long)baseAddress,
-                         (unsigned long long)regionSize,
-                         (unsigned int)flags,
+                         (unsigned long long)baseAddress, (unsigned long long)regionSize, (unsigned int)flags,
                          tag ? tag : "(null)");
         }
         return ok;
 #endif
     }
 
-    bool RegisterHookPatch(UINT64 patchAddress,
-                           UINT32 patchSize,
-                           const UINT8 *originalBytes,
-                           UINT32 originalSize,
-                           UINT32 flags,
-                           const char *tag) noexcept
+    bool RegisterHookPatch(UINT64 patchAddress, UINT32 patchSize, const UINT8 *originalBytes, UINT32 originalSize,
+                           UINT32 flags, const char *tag) noexcept
     {
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
         UNREFERENCED_PARAMETER(originalBytes);
         UNREFERENCED_PARAMETER(originalSize);
         UNREFERENCED_PARAMETER(flags);
@@ -851,7 +829,7 @@ namespace IXIPC
             return false;
         }
 
-        IXIPC_REGISTER_HOOK_PATCH_REQUEST request{};
+        SKUGGA_IPC_REGISTER_HOOK_PATCH_REQUEST request{};
         request.PatchAddress = patchAddress;
         request.PatchSize = patchSize;
         request.OriginalSize = originalSize;
@@ -871,15 +849,13 @@ namespace IXIPC
 
         bool ok;
         AcquireSRWLockExclusive(&g_pipeLock);
-        ok = TransactCommandLocked(IxIpcCommandRegisterHookPatch, &request, sizeof(request), nullptr);
+        ok = TransactCommandLocked(SkuggaIpcCommandRegisterHookPatch, &request, sizeof(request), nullptr);
         ReleaseSRWLockExclusive(&g_pipeLock);
 
         if (!ok)
         {
-            PipeDebugLog("RegisterHookPatch: failed address=0x%llX size=%lu tag=%s",
-                         (unsigned long long)patchAddress,
-                         (unsigned long)patchSize,
-                         tag ? tag : "(null)");
+            PipeDebugLog("RegisterHookPatch: failed address=0x%llX size=%lu tag=%s", (unsigned long long)patchAddress,
+                         (unsigned long)patchSize, tag ? tag : "(null)");
         }
         return ok;
 #endif
@@ -887,7 +863,7 @@ namespace IXIPC
 
     bool RegisterProcessInstrumentationCallback(UINT64 callbackAddress, UINT64 callbackSize, UINT32 flags) noexcept
     {
-#if defined(BLIND_STANDALONE)
+#if defined(SKUGGA_STANDALONE)
         UNREFERENCED_PARAMETER(flags);
         return callbackAddress != 0 && callbackSize != 0;
 #else
@@ -902,16 +878,14 @@ namespace IXIPC
 
         bool ok;
         AcquireSRWLockExclusive(&g_pipeLock);
-        ok = TransactCommandLocked(
-            IxIpcCommandRegisterProcessInstrumentationCallback, &request, sizeof(request), nullptr);
+        ok = TransactCommandLocked(SkuggaIpcCommandRegisterProcessInstrumentationCallback, &request, sizeof(request),
+                                   nullptr);
         ReleaseSRWLockExclusive(&g_pipeLock);
 
         if (!ok)
         {
             PipeDebugLog("RegisterProcessInstrumentationCallback: failed callback=0x%llX size=0x%llX flags=0x%08X",
-                         (unsigned long long)callbackAddress,
-                         (unsigned long long)callbackSize,
-                         (unsigned int)flags);
+                         (unsigned long long)callbackAddress, (unsigned long long)callbackSize, (unsigned int)flags);
         }
         return ok;
 #endif
@@ -934,8 +908,8 @@ namespace IXIPC
     bool NotifyHookReady(UINT32 readyMask, UINT32 *observedMaskOut, UINT32 *pendingCommandOut)
     {
         bool ok;
-        IXIPC_NOTIFY_HOOK_READY_REQUEST request{};
-        IXIPC_PACKET response{};
+        SKUGGA_IPC_NOTIFY_HOOK_READY_REQUEST request{};
+        SKUGGA_IPC_PACKET response{};
 
         if (readyMask == 0)
         {
@@ -946,7 +920,7 @@ namespace IXIPC
         request.ReadyMask = readyMask;
 
         AcquireSRWLockExclusive(&g_pipeLock);
-        ok = TransactCommandLocked(IxIpcCommandNotifyHookReady, &request, sizeof(request), &response);
+        ok = TransactCommandLocked(SkuggaIpcCommandNotifyHookReady, &request, sizeof(request), &response);
         ReleaseSRWLockExclusive(&g_pipeLock);
 
         if (!ok)
@@ -966,17 +940,17 @@ namespace IXIPC
         return true;
     }
 
-    bool QueryHookPolicy(IXIPC_QUERY_HOOK_POLICY_RESPONSE &policyOut) noexcept
+    bool QueryHookPolicy(SKUGGA_IPC_QUERY_HOOK_POLICY_RESPONSE &policyOut) noexcept
     {
         bool ok;
-        IXIPC_QUERY_HOOK_POLICY_REQUEST request{};
-        IXIPC_PACKET response{};
+        SKUGGA_IPC_QUERY_HOOK_POLICY_REQUEST request{};
+        SKUGGA_IPC_PACKET response{};
 
         std::memset(&policyOut, 0, sizeof(policyOut));
         request.ProcessId = GetCurrentProcessId();
 
         AcquireSRWLockExclusive(&g_pipeLock);
-        ok = TransactCommandLocked(IxIpcCommandQueryHookPolicy, &request, sizeof(request), &response);
+        ok = TransactCommandLocked(SkuggaIpcCommandQueryHookPolicy, &request, sizeof(request), &response);
         ReleaseSRWLockExclusive(&g_pipeLock);
 
         if (!ok)
@@ -988,4 +962,4 @@ namespace IXIPC
         policyOut = response.Payload.QueryHookPolicyResponse;
         return true;
     }
-} // namespace IXIPC
+} // namespace SKUGGA_IPC

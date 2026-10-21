@@ -1,6 +1,6 @@
-﻿#include "internal.h"
+#include "internal.h"
 
-namespace blind::mapper
+namespace skugga::mapper
 {
     void CloseDebugEventFileHandle(DEBUG_EVENT &event) noexcept
     {
@@ -50,8 +50,8 @@ namespace blind::mapper
         SIZE_T transferred = 0;
         if (previousValue != nullptr)
         {
-            if (!ReadProcessMemory(
-                    process, reinterpret_cast<const void *>(address), previousValue, sizeof(BYTE), &transferred) ||
+            if (!ReadProcessMemory(process, reinterpret_cast<const void *>(address), previousValue, sizeof(BYTE),
+                                   &transferred) ||
                 transferred != sizeof(BYTE))
             {
                 return false;
@@ -59,8 +59,8 @@ namespace blind::mapper
         }
 
         DWORD oldProtect = 0;
-        if (!VirtualProtectEx(
-                process, reinterpret_cast<void *>(address), sizeof(BYTE), PAGE_EXECUTE_READWRITE, &oldProtect))
+        if (!VirtualProtectEx(process, reinterpret_cast<void *>(address), sizeof(BYTE), PAGE_EXECUTE_READWRITE,
+                              &oldProtect))
         {
             return false;
         }
@@ -114,17 +114,14 @@ namespace blind::mapper
                     return false;
                 }
                 entryBreakpointArmed = true;
-                HostDebugLog(ctx,
-                             "manual-map: armed entrypoint breakpoint image=0x%llX entry=0x%llX original=0x%02X",
+                HostDebugLog(ctx, "manual-map: armed entrypoint breakpoint image=0x%llX entry=0x%llX original=0x%02X",
                              reinterpret_cast<unsigned long long>(event.u.CreateProcessInfo.lpBaseOfImage),
-                             static_cast<unsigned long long>(entryPoint),
-                             originalEntryByte);
+                             static_cast<unsigned long long>(entryPoint), originalEntryByte);
                 break;
             case EXIT_PROCESS_DEBUG_EVENT:
                 CloseDebugEventFileHandle(event);
                 (void)ContinueDebugEvent(event.dwProcessId, event.dwThreadId, DBG_CONTINUE);
-                HostDebugLog(ctx,
-                             "manual-map: child exited during debug pre-entry status=0x%08lX",
+                HostDebugLog(ctx, "manual-map: child exited during debug pre-entry status=0x%08lX",
                              event.u.ExitProcess.dwExitCode);
                 return false;
             case EXCEPTION_DEBUG_EVENT:
@@ -166,14 +163,12 @@ namespace blind::mapper
                     {
                         CloseDebugEventFileHandle(event);
                         (void)ContinueDebugEvent(event.dwProcessId, event.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
-                        HostDebugLog(
-                            ctx, "manual-map: failed to suspend primary thread at pre-entry gle=%lu", GetLastError());
+                        HostDebugLog(ctx, "manual-map: failed to suspend primary thread at pre-entry gle=%lu",
+                                     GetLastError());
                         return false;
                     }
-                    HostDebugLog(ctx,
-                                 "manual-map: debug entrypoint breakpoint tid=%lu previous_suspend=%lu",
-                                 event.dwThreadId,
-                                 previousSuspend);
+                    HostDebugLog(ctx, "manual-map: debug entrypoint breakpoint tid=%lu previous_suspend=%lu",
+                                 event.dwThreadId, previousSuspend);
                     detachAtPreEntry = true;
                 }
                 else
@@ -204,4 +199,4 @@ namespace blind::mapper
             }
         }
     }
-} // namespace blind::mapper
+} // namespace skugga::mapper

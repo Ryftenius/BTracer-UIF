@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -8,13 +8,13 @@
 
 #include <string>
 
-namespace blind::injector
+namespace skugga::injector
 {
     struct ServerContext;
 }
 
-namespace blind::mapper
+namespace skugga::mapper
 {
-    bool PauseDebuggedChildAtEntrypoint(blind::injector::ServerContext &ctx, PROCESS_INFORMATION &pi);
-    bool MapDllIntoChild(blind::injector::ServerContext &ctx, HANDLE process, const std::wstring &dllPath);
-} // namespace blind::mapper
+    bool PauseDebuggedChildAtEntrypoint(skugga::injector::ServerContext &ctx, PROCESS_INFORMATION &pi);
+    bool MapDllIntoChild(skugga::injector::ServerContext &ctx, HANDLE process, const std::wstring &dllPath);
+} // namespace skugga::mapper
